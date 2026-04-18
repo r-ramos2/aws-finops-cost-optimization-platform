@@ -479,7 +479,7 @@ This platform follows AWS security best practices but has intentional limitation
 - **Budget notifications:** SNS topic policy allows the AWS Budgets service to publish threshold alerts to the same encrypted topic
 - **KMS key rotation:** Automatic annual key rotation enabled
 - **No secrets in code:** All configuration via Terraform variables
--- **CloudWatch logging:** All Lambda executions logged for audit trail
+- **CloudWatch logging:** All Lambda executions logged for audit trail
 
 **For production, apply these hardening steps:**
 
