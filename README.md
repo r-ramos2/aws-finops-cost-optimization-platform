@@ -2,26 +2,26 @@
 
 [![Terraform](https://img.shields.io/badge/Terraform-%3E%3D1.0-blue)](https://www.terraform.io/) [![AWS](https://img.shields.io/badge/AWS-Cloud-orange)](https://aws.amazon.com/) [![Python](https://img.shields.io/badge/Python-3.9-blue)](https://www.python.org/) [![Lambda](https://img.shields.io/badge/AWS-Lambda-orange)](https://aws.amazon.com/lambda/) [![EventBridge](https://img.shields.io/badge/AWS-EventBridge-orange)](https://aws.amazon.com/eventbridge/)
 
-Automated cost monitoring, anomaly detection, and resource optimization for AWS infrastructure. Reduces cloud spend by 20-35% through intelligent automation and continuous cost visibility.
+Automated cost monitoring, anomaly detection, and resource optimization for AWS infrastructure. Teams often target **roughly 20–35%** savings when they combine visibility like this with broader FinOps practices (right-sizing, purchasing programs, storage lifecycle work, and governance).
 
 ---
 
 ## Highlights (For Recruiters & Hiring Managers)
 
-- **Business impact**: Reduces AWS spend by 20-35% through automated detection of waste, anomalies, and optimization opportunities.
-- **Production-ready**: Comprehensive error handling, CloudWatch logging, KMS encryption, and least-privilege IAM roles throughout.
+- **Business impact**: Surfaces waste, anomalies, and optimization candidates by email so teams can act quickly; material savings depend on follow-up work across the FinOps playbook (often in the ~20–35% range when multiple levers are used).
+- **Production-style controls**: CloudWatch logging, KMS encryption for SNS and log groups, least-privilege IAM scoped to the functions’ APIs, and an SNS resource policy so AWS Budgets can publish to the topic.
 - **Serverless-first**: Event-driven Lambda functions triggered by EventBridge for zero idle costs and automatic scaling.
 - **Cost visibility**: Daily email reports with budget tracking, service-level breakdowns, and month-to-date spend analysis.
-- **FinOps automation**: Detects 30%+ cost spikes, identifies unattached resources, recommends S3 lifecycle policies—all without manual intervention.
+- **FinOps automation**: Detects configurable cost spikes (default 30%+), scans for unattached EBS volumes, stopped instances, and aged snapshots, and emails actionable summaries—without manual runs.
 
 ---
 
 ## Quickstart (For Experienced Users)
 
 ```bash
-# 1. Clone repo and enter terraform folder
-git clone https://github.com/yourusername/aws-finops-cost-optimization.git
-cd aws-finops-cost-optimization/terraform
+# 1. Get the code and enter the terraform folder (fork/clone your copy, or cd into your extracted project directory)
+git clone https://github.com/<your-github>/<your-fork>.git
+cd <your-repo>/terraform
 
 # 2. Configure variables
 cp terraform.tfvars.example terraform.tfvars
@@ -100,7 +100,7 @@ AWS Budgets → SNS → Email (50%, 75%, 90%, 100% thresholds)
 ## Repository Structure
 
 ```
-aws-finops-cost-optimization/
+<your-project-folder>/
 ├── README.md                     # This file
 ├── LICENSE                       # MIT License
 ├── .gitignore                    # Git ignore rules
@@ -127,12 +127,14 @@ aws-finops-cost-optimization/
 
 ## Getting Started
 
-### 1. Clone the repository
+### 1. Get the repository
 
 ```bash
-git clone https://github.com/yourusername/aws-finops-cost-optimization.git
-cd aws-finops-cost-optimization/terraform
+git clone https://github.com/<your-github>/<your-fork>.git
+cd <your-repo>/terraform
 ```
+
+If you downloaded a ZIP archive instead, extract it, then `cd` into the project folder and run `cd terraform` from there.
 
 ### 2. Configure variables
 
@@ -167,7 +169,7 @@ min_savings_threshold = "10"
 ### 3. Provision infrastructure
 
 ```bash
-# Initialize Terraform and download providers
+# Initialize Terraform and download providers (commit terraform/.terraform.lock.hcl for reproducible applies)
 terraform init
 
 # Validate configuration syntax
@@ -272,26 +274,24 @@ Top Services:
 
 ### Anomaly Detector (Hourly)
 
-**Purpose:** Real-time cost spike detection
+**Purpose:** Early cost spike detection (Cost Explorer data is not real-time; this compares the latest complete daily slice the API returns.)
 
 **Functionality:**
-- Compares today's cost to same day last week
-- Identifies cost increases >= 30% (configurable threshold)
-- Analyzes service-level increases to pinpoint culprits
-- Sends alert email only when anomaly detected
-- Reduces alert fatigue by filtering normal variations
+- Compares **yesterday’s** total and per-service costs to the **same weekday one week earlier** (e.g., Tuesday vs the prior Tuesday)
+- Flags increases at or above the configured threshold (default 30%)
+- Sends an email only when at least one service or the overall total crosses the threshold
 
-**Email format:**
+**Email format (illustrative):**
 ```
-⚠️ COST ANOMALY DETECTED
+Cost Anomaly Detected - 2026-04-17
 
-Today so far: $567.89
-Same day last week: $345.67
-Increase: +64.3% (+$222.22)
+⚠️ Overall costs increased 64.3%
+  Previous: $345.67
+  Current: $567.89
 
-Affected Services:
-- Lambda: +150% ($123.45 → $308.64)
-- Data Transfer: +80% ($45.67 → $82.21)
+⚠️ AWS Lambda increased 150.0%
+  Previous: $123.45
+  Current: $308.64
 ```
 
 **Schedule:** Every hour via EventBridge
@@ -330,17 +330,19 @@ Total Potential Monthly Savings: $234.56
 
 ## Expected Savings
 
-**S3 Lifecycle Policies:** 15-25% reduction on storage costs
+The figures below mix **common FinOps outcomes** (industry patterns) with **what this repository automates** (EBS/snapshot/stopped-instance visibility via the weekly Lambda). S3 lifecycle and broad right-sizing are not implemented in code here; they are included as reference savings categories.
+
+**S3 Lifecycle Policies (manual / separate tooling):** 15-25% reduction on storage costs
 - Transition infrequently accessed data to S3 Glacier
 - Delete old versions and incomplete multipart uploads
 - Typical customer scenario: 1TB Standard → 700GB Standard + 300GB Glacier = $7.68/month savings
 
-**Unattached Resource Cleanup:** 5-10% reduction on storage costs
+**Unattached resource cleanup (partially surfaced by this repo’s weekly scan):** 5-10% reduction on storage costs
 - Delete EBS volumes no longer attached to instances
 - Remove old snapshots (90+ days with no associated AMI)
 - Typical customer scenario: 500GB unattached volumes @ $0.10/GB = $50/month savings
 
-**Right-sizing Recommendations:** 10-20% reduction on compute costs
+**Right-sizing recommendations (not automated here):** 10-20% reduction on compute costs
 - Identify oversized EC2 instances (consistent <20% CPU utilization)
 - Recommend Reserved Instances for predictable workloads
 - Suggest Spot instances for fault-tolerant workloads
@@ -473,7 +475,8 @@ This platform follows AWS security best practices but has intentional limitation
 
 ✅ **Encryption at rest:** All CloudWatch Logs encrypted with KMS
 ✅ **Encryption in transit:** SNS uses TLS; Lambda uses HTTPS for AWS API calls  
-✅ **Least-privilege IAM:** Lambda role only has required permissions (Cost Explorer, EC2 describe, SNS publish, CloudWatch logs)
+✅ **Least-privilege IAM:** Lambda role is scoped to Cost Explorer reads, EC2 describe APIs used by the optimizer, SNS publish to the dedicated topic, KMS use for that topic and log groups, and CloudWatch Logs for the three function log groups
+✅ **Budget notifications:** SNS topic policy allows the AWS Budgets service to publish threshold alerts to the same encrypted topic
 ✅ **KMS key rotation:** Automatic annual key rotation enabled
 ✅ **No secrets in code:** All configuration via Terraform variables
 ✅ **CloudWatch logging:** All Lambda executions logged for audit trail
@@ -563,6 +566,7 @@ This repository is intentionally designed as a **portfolio/lab project** demonst
 - Limited to top 10 services in cost breakdown
 
 **Limited optimization scope:**
+- Does not inspect S3 buckets or recommend lifecycle transitions (only EC2/EBS snapshot heuristics in code)
 - Does not analyze Reserved Instance utilization or coverage
 - No Savings Plans recommendations
 - Does not check for underutilized RDS instances
