@@ -8,12 +8,14 @@
 
 ## Step-by-Step Deployment
 
-### 1. Clone Repository
+### 1. Get the code
 
 ```bash
-git clone https://github.com/yourusername/aws-finops-cost-optimization.git
-cd aws-finops-cost-optimization
+git clone https://github.com/<your-github>/<your-fork>.git
+cd <your-repo>
 ```
+
+If you use a ZIP download, extract it first, then `cd` into the project directory (the folder that contains `terraform/` and `lambda/`).
 
 ### 2. Configure Variables
 
