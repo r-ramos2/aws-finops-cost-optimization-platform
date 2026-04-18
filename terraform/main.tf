@@ -5,11 +5,73 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
+    archive = {
+      source  = "hashicorp/archive"
+      version = "~> 2.4"
+    }
   }
 }
 
 provider "aws" {
   region = var.aws_region
+}
+
+data "aws_caller_identity" "current" {}
+
+data "aws_iam_policy_document" "kms_finops" {
+  statement {
+    sid    = "EnableAccountRootAdministration"
+    effect = "Allow"
+    principals {
+      type        = "AWS"
+      identifiers = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"]
+    }
+    actions   = ["kms:*"]
+    resources = ["*"]
+  }
+
+  statement {
+    sid    = "AllowCloudWatchLogsEncryption"
+    effect = "Allow"
+    principals {
+      type        = "Service"
+      identifiers = ["logs.${var.aws_region}.amazonaws.com"]
+    }
+    actions = [
+      "kms:Encrypt",
+      "kms:Decrypt",
+      "kms:ReEncrypt*",
+      "kms:GenerateDataKey*",
+      "kms:CreateGrant",
+      "kms:DescribeKey"
+    ]
+    resources = ["*"]
+    condition {
+      test     = "ArnLike"
+      variable = "kms:EncryptionContext:aws:logs:arn"
+      values   = ["arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:*"]
+    }
+  }
+
+  statement {
+    sid    = "AllowSNSEncryption"
+    effect = "Allow"
+    principals {
+      type        = "Service"
+      identifiers = ["sns.amazonaws.com"]
+    }
+    actions = [
+      "kms:Decrypt",
+      "kms:GenerateDataKey*",
+      "kms:DescribeKey"
+    ]
+    resources = ["*"]
+    condition {
+      test     = "StringEquals"
+      variable = "aws:SourceAccount"
+      values   = [data.aws_caller_identity.current.account_id]
+    }
+  }
 }
 
 # SNS Topic for Cost Alerts
@@ -25,11 +87,35 @@ resource "aws_sns_topic_subscription" "cost_alerts_email" {
   endpoint  = var.alert_email
 }
 
+resource "aws_sns_topic_policy" "cost_alerts_budgets" {
+  arn = aws_sns_topic.cost_alerts.arn
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "AllowAWSBudgetsPublish"
+        Effect = "Allow"
+        Principal = {
+          Service = "budgets.amazonaws.com"
+        }
+        Action   = "sns:Publish"
+        Resource = aws_sns_topic.cost_alerts.arn
+        Condition = {
+          StringEquals = {
+            "aws:SourceAccount" = data.aws_caller_identity.current.account_id
+          }
+        }
+      }
+    ]
+  })
+}
+
 # KMS Key for Encryption
 resource "aws_kms_key" "finops" {
   description             = "KMS key for FinOps cost optimization"
   deletion_window_in_days = 7
   enable_key_rotation     = true
+  policy                  = data.aws_iam_policy_document.kms_finops.json
 }
 
 resource "aws_kms_alias" "finops" {
@@ -84,8 +170,7 @@ resource "aws_iam_role_policy" "lambda_cost_explorer" {
         Effect = "Allow"
         Action = [
           "ce:GetCostAndUsage",
-          "ce:GetCostForecast",
-          "budgets:ViewBudget"
+          "ce:GetCostForecast"
         ]
         Resource = "*"
       },
@@ -94,10 +179,7 @@ resource "aws_iam_role_policy" "lambda_cost_explorer" {
         Action = [
           "ec2:DescribeInstances",
           "ec2:DescribeVolumes",
-          "ec2:DescribeSnapshots",
-          "s3:ListAllMyBuckets",
-          "s3:GetBucketLocation",
-          "s3:GetLifecycleConfiguration"
+          "ec2:DescribeSnapshots"
         ]
         Resource = "*"
       },
@@ -111,11 +193,34 @@ resource "aws_iam_role_policy" "lambda_cost_explorer" {
       {
         Effect = "Allow"
         Action = [
-          "logs:CreateLogGroup",
+          "kms:Decrypt",
+          "kms:GenerateDataKey",
+          "kms:DescribeKey"
+        ]
+        Resource = aws_kms_key.finops.arn
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogGroup"
+        ]
+        Resource = [
+          aws_cloudwatch_log_group.cost_reporter.arn,
+          aws_cloudwatch_log_group.anomaly_detector.arn,
+          aws_cloudwatch_log_group.resource_optimizer.arn
+        ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
           "logs:CreateLogStream",
           "logs:PutLogEvents"
         ]
-        Resource = "arn:aws:logs:*:*:*"
+        Resource = [
+          "${aws_cloudwatch_log_group.cost_reporter.arn}:*",
+          "${aws_cloudwatch_log_group.anomaly_detector.arn}:*",
+          "${aws_cloudwatch_log_group.resource_optimizer.arn}:*"
+        ]
       }
     ]
   })
@@ -131,15 +236,15 @@ data "archive_file" "cost_reporter" {
 resource "aws_lambda_function" "cost_reporter" {
   filename         = data.archive_file.cost_reporter.output_path
   function_name    = "${var.project_name}-cost-reporter"
-  role            = aws_iam_role.lambda_finops.arn
-  handler         = "lambda_function.lambda_handler"
+  role             = aws_iam_role.lambda_finops.arn
+  handler          = "lambda_function.lambda_handler"
   source_code_hash = data.archive_file.cost_reporter.output_base64sha256
-  runtime         = "python3.9"
-  timeout         = 60
+  runtime          = "python3.9"
+  timeout          = 60
 
   environment {
     variables = {
-      SNS_TOPIC_ARN = aws_sns_topic.cost_alerts.arn
+      SNS_TOPIC_ARN  = aws_sns_topic.cost_alerts.arn
       MONTHLY_BUDGET = var.monthly_budget
     }
   }
@@ -157,15 +262,15 @@ data "archive_file" "anomaly_detector" {
 resource "aws_lambda_function" "anomaly_detector" {
   filename         = data.archive_file.anomaly_detector.output_path
   function_name    = "${var.project_name}-anomaly-detector"
-  role            = aws_iam_role.lambda_finops.arn
-  handler         = "lambda_function.lambda_handler"
+  role             = aws_iam_role.lambda_finops.arn
+  handler          = "lambda_function.lambda_handler"
   source_code_hash = data.archive_file.anomaly_detector.output_base64sha256
-  runtime         = "python3.9"
-  timeout         = 60
+  runtime          = "python3.9"
+  timeout          = 60
 
   environment {
     variables = {
-      SNS_TOPIC_ARN = aws_sns_topic.cost_alerts.arn
+      SNS_TOPIC_ARN     = aws_sns_topic.cost_alerts.arn
       ANOMALY_THRESHOLD = var.anomaly_threshold_percent
     }
   }
@@ -183,15 +288,15 @@ data "archive_file" "resource_optimizer" {
 resource "aws_lambda_function" "resource_optimizer" {
   filename         = data.archive_file.resource_optimizer.output_path
   function_name    = "${var.project_name}-resource-optimizer"
-  role            = aws_iam_role.lambda_finops.arn
-  handler         = "lambda_function.lambda_handler"
+  role             = aws_iam_role.lambda_finops.arn
+  handler          = "lambda_function.lambda_handler"
   source_code_hash = data.archive_file.resource_optimizer.output_base64sha256
-  runtime         = "python3.9"
-  timeout         = 120
+  runtime          = "python3.9"
+  timeout          = 120
 
   environment {
     variables = {
-      SNS_TOPIC_ARN = aws_sns_topic.cost_alerts.arn
+      SNS_TOPIC_ARN         = aws_sns_topic.cost_alerts.arn
       MIN_SAVINGS_THRESHOLD = var.min_savings_threshold
     }
   }
@@ -203,7 +308,7 @@ resource "aws_lambda_function" "resource_optimizer" {
 resource "aws_cloudwatch_event_rule" "daily_cost_report" {
   name                = "${var.project_name}-daily-cost-report"
   description         = "Trigger daily cost report"
-  schedule_expression = "cron(0 8 * * ? *)"  # 8 AM UTC daily
+  schedule_expression = "cron(0 8 * * ? *)" # 8 AM UTC daily
 }
 
 resource "aws_cloudwatch_event_target" "daily_cost_report" {
@@ -213,7 +318,7 @@ resource "aws_cloudwatch_event_target" "daily_cost_report" {
 }
 
 resource "aws_lambda_permission" "allow_eventbridge_cost_reporter" {
-  statement_id  = "AllowExecutionFromEventBridge"
+  statement_id  = "AllowExecutionFromEventBridgeCostReporter"
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.cost_reporter.function_name
   principal     = "events.amazonaws.com"
@@ -233,7 +338,7 @@ resource "aws_cloudwatch_event_target" "hourly_anomaly_check" {
 }
 
 resource "aws_lambda_permission" "allow_eventbridge_anomaly_detector" {
-  statement_id  = "AllowExecutionFromEventBridge"
+  statement_id  = "AllowExecutionFromEventBridgeAnomalyDetector"
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.anomaly_detector.function_name
   principal     = "events.amazonaws.com"
@@ -243,7 +348,7 @@ resource "aws_lambda_permission" "allow_eventbridge_anomaly_detector" {
 resource "aws_cloudwatch_event_rule" "weekly_optimization" {
   name                = "${var.project_name}-weekly-optimization"
   description         = "Weekly resource optimization scan"
-  schedule_expression = "cron(0 9 ? * MON *)"  # 9 AM UTC every Monday
+  schedule_expression = "cron(0 9 ? * MON *)" # 9 AM UTC every Monday
 }
 
 resource "aws_cloudwatch_event_target" "weekly_optimization" {
@@ -253,7 +358,7 @@ resource "aws_cloudwatch_event_target" "weekly_optimization" {
 }
 
 resource "aws_lambda_permission" "allow_eventbridge_resource_optimizer" {
-  statement_id  = "AllowExecutionFromEventBridge"
+  statement_id  = "AllowExecutionFromEventBridgeResourceOptimizer"
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.resource_optimizer.function_name
   principal     = "events.amazonaws.com"
@@ -262,39 +367,41 @@ resource "aws_lambda_permission" "allow_eventbridge_resource_optimizer" {
 
 # Budget Alert
 resource "aws_budgets_budget" "monthly" {
-  name              = "${var.project_name}-monthly-budget"
-  budget_type       = "COST"
-  limit_amount      = var.monthly_budget
-  limit_unit        = "USD"
-  time_unit         = "MONTHLY"
+  name         = "${var.project_name}-monthly-budget"
+  budget_type  = "COST"
+  limit_amount = var.monthly_budget
+  limit_unit   = "USD"
+  time_unit    = "MONTHLY"
+
+  depends_on = [aws_sns_topic_policy.cost_alerts_budgets]
 
   notification {
-    comparison_operator        = "GREATER_THAN"
-    threshold                  = 50
+    comparison_operator       = "GREATER_THAN"
+    threshold                 = 50
     threshold_type            = "PERCENTAGE"
     notification_type         = "ACTUAL"
     subscriber_sns_topic_arns = [aws_sns_topic.cost_alerts.arn]
   }
 
   notification {
-    comparison_operator        = "GREATER_THAN"
-    threshold                  = 75
+    comparison_operator       = "GREATER_THAN"
+    threshold                 = 75
     threshold_type            = "PERCENTAGE"
     notification_type         = "ACTUAL"
     subscriber_sns_topic_arns = [aws_sns_topic.cost_alerts.arn]
   }
 
   notification {
-    comparison_operator        = "GREATER_THAN"
-    threshold                  = 90
+    comparison_operator       = "GREATER_THAN"
+    threshold                 = 90
     threshold_type            = "PERCENTAGE"
     notification_type         = "ACTUAL"
     subscriber_sns_topic_arns = [aws_sns_topic.cost_alerts.arn]
   }
 
   notification {
-    comparison_operator        = "GREATER_THAN"
-    threshold                  = 100
+    comparison_operator       = "GREATER_THAN"
+    threshold                 = 100
     threshold_type            = "PERCENTAGE"
     notification_type         = "FORECASTED"
     subscriber_sns_topic_arns = [aws_sns_topic.cost_alerts.arn]
