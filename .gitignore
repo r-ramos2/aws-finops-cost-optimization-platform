@@ -3,7 +3,6 @@
 *.tfstate
 *.tfstate.backup
 *.tfvars
-.terraform.lock.hcl
 terraform/cost_reporter.zip
 terraform/anomaly_detector.zip
 terraform/resource_optimizer.zip
