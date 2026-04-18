@@ -14,69 +14,75 @@ def lambda_handler(event, context):
         total_savings = Decimal('0')
         
         # 1. Unattached EBS volumes
-        volumes = ec2_client.describe_volumes(
+        volume_paginator = ec2_client.get_paginator('describe_volumes')
+        volumes_iter = volume_paginator.paginate(
             Filters=[{'Name': 'status', 'Values': ['available']}]
         )
-        
-        for volume in volumes['Volumes']:
-            # Estimate cost: $0.10/GB-month for gp2
-            size = Decimal(str(volume['Size']))
-            monthly_cost = size * Decimal('0.10')
-            total_savings += monthly_cost
-            
-            recommendations.append({
-                'type': 'Unattached EBS Volume',
-                'resource_id': volume['VolumeId'],
-                'size_gb': volume['Size'],
-                'monthly_savings': monthly_cost,
-                'action': 'Delete if no longer needed'
-            })
-        
+
+        for page in volumes_iter:
+            for volume in page['Volumes']:
+                # Estimate cost: $0.10/GB-month for gp2
+                size = Decimal(str(volume['Size']))
+                monthly_cost = size * Decimal('0.10')
+                total_savings += monthly_cost
+
+                recommendations.append({
+                    'type': 'Unattached EBS Volume',
+                    'resource_id': volume['VolumeId'],
+                    'size_gb': volume['Size'],
+                    'monthly_savings': monthly_cost,
+                    'action': 'Delete if no longer needed'
+                })
+
         # 2. Stopped EC2 instances (still incur EBS costs)
-        instances = ec2_client.describe_instances(
+        instance_paginator = ec2_client.get_paginator('describe_instances')
+        instances_iter = instance_paginator.paginate(
             Filters=[{'Name': 'instance-state-name', 'Values': ['stopped']}]
         )
-        
-        for reservation in instances['Reservations']:
-            for instance in reservation['Instances']:
-                # Estimate EBS costs
-                ebs_cost = Decimal('0')
-                for mapping in instance.get('BlockDeviceMappings', []):
-                    if 'Ebs' in mapping:
-                        volume_id = mapping['Ebs']['VolumeId']
-                        vol = ec2_client.describe_volumes(VolumeIds=[volume_id])
-                        size = Decimal(str(vol['Volumes'][0]['Size']))
-                        ebs_cost += size * Decimal('0.10')
-                
-                if ebs_cost > Decimal('0'):
-                    total_savings += ebs_cost
-                    recommendations.append({
-                        'type': 'Stopped EC2 Instance',
-                        'resource_id': instance['InstanceId'],
-                        'instance_type': instance['InstanceType'],
-                        'monthly_savings': ebs_cost,
-                        'action': 'Terminate if no longer needed, or create AMI and terminate'
-                    })
-        
+
+        for page in instances_iter:
+            for reservation in page['Reservations']:
+                for instance in reservation['Instances']:
+                    # Estimate EBS costs
+                    ebs_cost = Decimal('0')
+                    for mapping in instance.get('BlockDeviceMappings', []):
+                        if 'Ebs' in mapping:
+                            volume_id = mapping['Ebs']['VolumeId']
+                            vol = ec2_client.describe_volumes(VolumeIds=[volume_id])
+                            size = Decimal(str(vol['Volumes'][0]['Size']))
+                            ebs_cost += size * Decimal('0.10')
+
+                    if ebs_cost > Decimal('0'):
+                        total_savings += ebs_cost
+                        recommendations.append({
+                            'type': 'Stopped EC2 Instance',
+                            'resource_id': instance['InstanceId'],
+                            'instance_type': instance['InstanceType'],
+                            'monthly_savings': ebs_cost,
+                            'action': 'Terminate if no longer needed, or create AMI and terminate'
+                        })
+
         # 3. Old snapshots (>90 days)
-        snapshots = ec2_client.describe_snapshots(OwnerIds=['self'])
+        snapshot_paginator = ec2_client.get_paginator('describe_snapshots')
+        snapshots_iter = snapshot_paginator.paginate(OwnerIds=['self'])
         old_date = datetime.now() - timedelta(days=90)
-        
-        for snapshot in snapshots['Snapshots']:
-            if snapshot['StartTime'].replace(tzinfo=None) < old_date:
-                # Estimate: $0.05/GB-month for snapshots
-                size = Decimal(str(snapshot['VolumeSize']))
-                monthly_cost = size * Decimal('0.05')
-                total_savings += monthly_cost
-                
-                recommendations.append({
-                    'type': 'Old Snapshot',
-                    'resource_id': snapshot['SnapshotId'],
-                    'age_days': (datetime.now() - snapshot['StartTime'].replace(tzinfo=None)).days,
-                    'size_gb': snapshot['VolumeSize'],
-                    'monthly_savings': monthly_cost,
-                    'action': 'Delete if backup no longer needed'
-                })
+
+        for page in snapshots_iter:
+            for snapshot in page['Snapshots']:
+                if snapshot['StartTime'].replace(tzinfo=None) < old_date:
+                    # Estimate: $0.05/GB-month for snapshots
+                    size = Decimal(str(snapshot['VolumeSize']))
+                    monthly_cost = size * Decimal('0.05')
+                    total_savings += monthly_cost
+
+                    recommendations.append({
+                        'type': 'Old Snapshot',
+                        'resource_id': snapshot['SnapshotId'],
+                        'age_days': (datetime.now() - snapshot['StartTime'].replace(tzinfo=None)).days,
+                        'size_gb': snapshot['VolumeSize'],
+                        'monthly_savings': monthly_cost,
+                        'action': 'Delete if backup no longer needed'
+                    })
         
         # Send report if savings found
         min_threshold = Decimal(os.environ['MIN_SAVINGS_THRESHOLD'])
