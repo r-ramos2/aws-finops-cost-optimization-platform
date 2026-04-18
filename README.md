@@ -473,13 +473,13 @@ This platform follows AWS security best practices but has intentional limitation
 
 **Security features implemented:**
 
-✅ **Encryption at rest:** All CloudWatch Logs encrypted with KMS
-✅ **Encryption in transit:** SNS uses TLS; Lambda uses HTTPS for AWS API calls  
-✅ **Least-privilege IAM:** Lambda role is scoped to Cost Explorer reads, EC2 describe APIs used by the optimizer, SNS publish to the dedicated topic, KMS use for that topic and log groups, and CloudWatch Logs for the three function log groups
-✅ **Budget notifications:** SNS topic policy allows the AWS Budgets service to publish threshold alerts to the same encrypted topic
-✅ **KMS key rotation:** Automatic annual key rotation enabled
-✅ **No secrets in code:** All configuration via Terraform variables
-✅ **CloudWatch logging:** All Lambda executions logged for audit trail
+- **Encryption at rest:** All CloudWatch Logs encrypted with KMS
+- **Encryption in transit:** SNS uses TLS; Lambda uses HTTPS for AWS API calls  
+- **Least-privilege IAM:** Lambda role is scoped to Cost Explorer reads, EC2 describe APIs used by the optimizer, SNS publish to the dedicated topic, KMS use for that topic and log groups, and CloudWatch Logs for the three function log groups
+- **Budget notifications:** SNS topic policy allows the AWS Budgets service to publish threshold alerts to the same encrypted topic
+- **KMS key rotation:** Automatic annual key rotation enabled
+- **No secrets in code:** All configuration via Terraform variables
+-- **CloudWatch logging:** All Lambda executions logged for audit trail
 
 **For production, apply these hardening steps:**
 
