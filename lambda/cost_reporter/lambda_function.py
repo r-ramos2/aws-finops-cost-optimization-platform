@@ -49,8 +49,12 @@ def lambda_handler(event, context):
                     service_costs.append((service, amount))
         
         service_costs.sort(key=lambda x: x[1], reverse=True)
-        
-        mtd_total = Decimal(mtd_response['ResultsByTime'][0]['Total']['UnblendedCost']['Amount'])
+
+        mtd_results = mtd_response.get('ResultsByTime') or []
+        if not mtd_results:
+            mtd_total = Decimal('0')
+        else:
+            mtd_total = Decimal(mtd_results[0]['Total']['UnblendedCost']['Amount'])
         monthly_budget = Decimal(os.environ['MONTHLY_BUDGET'])
         budget_percent = (mtd_total / monthly_budget * 100) if monthly_budget > 0 else 0
         
