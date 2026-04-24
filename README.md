@@ -6,6 +6,12 @@ Automated cost monitoring, anomaly detection, and resource optimization for AWS 
 
 ---
 
+## Architecture
+
+![Architecture Diagram](images/architecture-diagram.svg)
+
+---
+
 ## Highlights (For Recruiters & Hiring Managers)
 
 - **Business impact**: Surfaces waste, anomalies, and optimization candidates by email so teams can act quickly; material savings depend on follow-up work across the FinOps playbook (often in the ~20–35% range when multiple levers are used).
