@@ -105,7 +105,7 @@ def lambda_handler(event, context):
             
             sns_client.publish(
                 TopicArn=os.environ['SNS_TOPIC_ARN'],
-                Subject=f"⚠️ Cost Anomaly Detected",
+                Subject="⚠️ Cost Anomaly Detected",
                 Message=message
             )
         
