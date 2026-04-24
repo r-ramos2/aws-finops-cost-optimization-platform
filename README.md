@@ -6,12 +6,6 @@ Automated cost monitoring, anomaly detection, and resource optimization for AWS 
 
 ---
 
-## Architecture
-
-![Architecture Diagram](images/architecture-diagram.svg)
-
----
-
 ## Highlights (For Recruiters & Hiring Managers)
 
 - **Business impact**: Surfaces waste, anomalies, and optimization candidates by email so teams can act quickly; material savings depend on follow-up work across the FinOps playbook (often in the ~20–35% range when multiple levers are used).
@@ -70,30 +64,7 @@ cat output.json
 
 ## Architecture Overview
 
-```mermaid
-flowchart LR
-    EB1[EventBridge Daily Rule] --> CR[Lambda Cost Reporter]
-    EB2[EventBridge Hourly Rule] --> AD[Lambda Anomaly Detector]
-    EB3[EventBridge Weekly Rule] --> RO[Lambda Resource Optimizer]
-
-    CR --> SNS[SNS Cost Alerts]
-    AD --> SNS
-    RO --> SNS
-    BUD[AWS Budgets] --> SNS
-    SNS --> EMAIL[Email Subscribers]
-
-    CR --> LOGS[CloudWatch Logs KMS encrypted]
-    AD --> LOGS
-    RO --> LOGS
-
-    EB1 -. failed delivery .-> DLQ[SQS EventBridge DLQ]
-    EB2 -. failed delivery .-> DLQ
-    EB3 -. failed delivery .-> DLQ
-
-    ALARM1[CW Alarm Cost Reporter Errors] --> SNS
-    ALARM2[CW Alarm Anomaly Detector Errors] --> SNS
-    ALARM3[CW Alarm Resource Optimizer Errors] --> SNS
-```
+![Architecture Diagram](images/architecture-diagram.svg)
 
 **Key components:**
 - **3 Lambda functions** for cost reporting, anomaly detection, and resource optimization
