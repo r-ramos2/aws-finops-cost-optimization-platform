@@ -18,6 +18,9 @@ jobs:
       - name: Install test dependencies
         run: pip install -r requirements-dev.txt
 
+      - name: Lint
+        run: ruff check lambda/ tests/
+
       - name: Run unit tests
         run: pytest -q
 
