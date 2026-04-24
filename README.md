@@ -9,7 +9,7 @@ Automated cost monitoring, anomaly detection, and resource optimization for AWS 
 ## Highlights (For Recruiters & Hiring Managers)
 
 - **Business impact**: Surfaces waste, anomalies, and optimization candidates by email so teams can act quickly; material savings depend on follow-up work across the FinOps playbook (often in the ~20–35% range when multiple levers are used).
-- **Production-style controls**: CloudWatch logging, KMS encryption for SNS and log groups, least-privilege IAM scoped to the functions’ APIs, and an SNS resource policy so AWS Budgets can publish to the topic.
+- **Production-style controls**: Function-specific least-privilege IAM roles, KMS encryption, EventBridge DLQ for failed deliveries, CloudWatch error alarms, and CI checks for Terraform + Python tests.
 - **Serverless-first**: Event-driven Lambda functions triggered by EventBridge for zero idle costs and automatic scaling.
 - **Cost visibility**: Daily email reports with budget tracking, service-level breakdowns, and month-to-date spend analysis.
 - **FinOps automation**: Detects configurable cost spikes (default 30%+), scans for unattached EBS volumes, stopped instances, and aged snapshots, and emails actionable summaries—without manual runs.
@@ -53,23 +53,40 @@ cat output.json
 7. [Cost Estimate](#cost-estimate)
 8. [Cleanup](#cleanup)
 9. [Best Practices](#best-practices)
-10. [Security Considerations](#security-considerations)
-11. [Troubleshooting](#troubleshooting)
-12. [Limitations (Not Production-Ready)](#limitations-not-production-ready)
-13. [Next Steps & Enhancements](#next-steps--enhancements)
-14. [Resources](#resources)
+10. [Testing & CI](#testing--ci)
+11. [Security Considerations](#security-considerations)
+12. [Troubleshooting](#troubleshooting)
+13. [Current Scope](#current-scope)
+14. [Next Steps & Enhancements](#next-steps--enhancements)
+15. [Resources](#resources)
 
 ---
 
 ## Architecture Overview
 
-```
-EventBridge (Daily 8AM UTC)    → Lambda (Cost Reporter)     → SNS → Email
-EventBridge (Hourly)           → Lambda (Anomaly Detector)  → SNS → Email  
-EventBridge (Weekly Mon 9AM)   → Lambda (Resource Optimizer) → SNS → Email
+```mermaid
+flowchart LR
+    EB1[EventBridge Daily Rule] --> CR[Lambda Cost Reporter]
+    EB2[EventBridge Hourly Rule] --> AD[Lambda Anomaly Detector]
+    EB3[EventBridge Weekly Rule] --> RO[Lambda Resource Optimizer]
 
-All Lambdas → CloudWatch Logs (7-day retention, KMS encrypted)
-AWS Budgets → SNS → Email (50%, 75%, 90%, 100% thresholds)
+    CR --> SNS[SNS Cost Alerts]
+    AD --> SNS
+    RO --> SNS
+    BUD[AWS Budgets] --> SNS
+    SNS --> EMAIL[Email Subscribers]
+
+    CR --> LOGS[CloudWatch Logs KMS encrypted]
+    AD --> LOGS
+    RO --> LOGS
+
+    EB1 -. failed delivery .-> DLQ[SQS EventBridge DLQ]
+    EB2 -. failed delivery .-> DLQ
+    EB3 -. failed delivery .-> DLQ
+
+    ALARM1[CW Alarm Cost Reporter Errors] --> SNS
+    ALARM2[CW Alarm Anomaly Detector Errors] --> SNS
+    ALARM3[CW Alarm Resource Optimizer Errors] --> SNS
 ```
 
 **Key components:**
@@ -78,6 +95,8 @@ AWS Budgets → SNS → Email (50%, 75%, 90%, 100% thresholds)
 - **SNS topic** with email subscription for all cost alerts and reports
 - **CloudWatch Log Groups** with KMS encryption for centralized logging
 - **AWS Budgets** with multi-threshold alerts for spend tracking
+- **CloudWatch alarms** for Lambda error visibility
+- **SQS dead-letter queue** for failed EventBridge delivery events
 - **KMS key** with automatic rotation for encryption at rest
 
 ---
@@ -186,7 +205,9 @@ Deployment creates:
 - 3 Lambda functions with CloudWatch log groups
 - 1 SNS topic with KMS encryption
 - 3 EventBridge rules for scheduling
-- 1 IAM role with least-privilege policies
+- 3 IAM roles with function-specific least-privilege policies
+- 1 SQS dead-letter queue for EventBridge failed deliveries
+- 3 CloudWatch Lambda error alarms routed to SNS
 - 1 KMS key with automatic rotation
 - 1 AWS Budget with multi-threshold alerts
 
@@ -467,6 +488,43 @@ rm -f terraform.tfstate terraform.tfstate.backup
 
 ---
 
+## Testing & CI
+
+This repository includes baseline automated checks for hiring-manager readability and safer changes:
+
+- **Terraform CI checks:** `terraform fmt -check`, `terraform init -backend=false`, and `terraform validate`
+- **Python tests:** Unit tests for report generation, anomaly detection threshold behavior, and optimization recommendation generation
+- **GitHub Actions workflow:** `.github/workflows/ci.yml`
+
+Run checks locally:
+
+```bash
+pip install -r requirements-dev.txt
+pytest -q
+
+cd terraform
+terraform fmt -check -recursive
+terraform init -backend=false
+terraform validate
+```
+
+If you deploy with team workflows, copy `terraform/backend.tf.example` to `terraform/backend.tf` and set your S3 bucket and DynamoDB lock table values.
+
+---
+
+## Production Readiness Checklist
+
+- [x] IAM least-privilege roles per Lambda function
+- [x] KMS encryption for SNS topic and CloudWatch logs
+- [x] EventBridge dead-letter queue for failed deliveries
+- [x] Lambda error alarms routed to SNS notifications
+- [x] Terraform variable validation and parameterized configuration
+- [x] CI checks for Terraform formatting/validation and Python tests
+- [x] MIT license and repository hygiene (`.gitignore`, documentation)
+- [ ] Remote state backend enabled in your AWS account (`backend.tf`)
+
+---
+
 ## Security Considerations
 
 This platform follows AWS security best practices but has intentional limitations for simplicity. It is designed as a portfolio/lab project demonstrating FinOps implementation.
@@ -475,11 +533,13 @@ This platform follows AWS security best practices but has intentional limitation
 
 - **Encryption at rest:** All CloudWatch Logs encrypted with KMS
 - **Encryption in transit:** SNS uses TLS; Lambda uses HTTPS for AWS API calls  
-- **Least-privilege IAM:** Lambda role is scoped to Cost Explorer reads, EC2 describe APIs used by the optimizer, SNS publish to the dedicated topic, KMS use for that topic and log groups, and CloudWatch Logs for the three function log groups
+- **Least-privilege IAM:** Function-specific Lambda roles only include the APIs each function needs
 - **Budget notifications:** SNS topic policy allows the AWS Budgets service to publish threshold alerts to the same encrypted topic
 - **KMS key rotation:** Automatic annual key rotation enabled
 - **No secrets in code:** All configuration via Terraform variables
 - **CloudWatch logging:** All Lambda executions logged for audit trail
+- **Failure handling:** EventBridge dead-letter queue captures failed event deliveries
+- **Operational alerting:** CloudWatch error alarms notify through SNS
 
 **For production, apply these hardening steps:**
 
@@ -550,9 +610,9 @@ This platform follows AWS security best practices but has intentional limitation
 
 ---
 
-## Limitations (Not Production-Ready)
+## Current Scope
 
-This repository is intentionally designed as a **portfolio/lab project** demonstrating FinOps implementation. Key limitations:
+This repository intentionally focuses on core FinOps automation patterns. Current scope boundaries:
 
 **Single-account architecture:**
 - Only monitors one AWS account (not multi-account AWS Organizations)
