@@ -1,6 +1,8 @@
 aws_region                = "us-east-1"
 project_name              = "finops-cost-optimization"
+environment               = "dev"
 alert_email               = "your.email@example.com"
 monthly_budget            = "1000"
 anomaly_threshold_percent = "30"
 min_savings_threshold     = "10"
+log_retention_days        = 14
