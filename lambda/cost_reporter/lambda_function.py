@@ -73,7 +73,7 @@ Top Services (Yesterday):
             report += f"  • {service}: ${cost:.2f}\n"
         
         if budget_percent > 90:
-            report += f"\n⚠️ WARNING: Budget utilization above 90%"
+            report += "\n⚠️ WARNING: Budget utilization above 90%"
         
         # Send report
         sns_client.publish(
