@@ -1,0 +1,303 @@
+<svg viewBox="0 0 980 700" xmlns="http://www.w3.org/2000/svg" font-family="'Segoe UI', Arial, sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0d1b2a"/>
+      <stop offset="100%" style="stop-color:#1a2e45"/>
+    </linearGradient>
+    <linearGradient id="ebGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4a1a6b"/>
+      <stop offset="100%" style="stop-color:#2d0f45"/>
+    </linearGradient>
+    <linearGradient id="lambdaGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a3a0d"/>
+      <stop offset="100%" style="stop-color:#0f2507"/>
+    </linearGradient>
+    <linearGradient id="snsGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6b1a1a"/>
+      <stop offset="100%" style="stop-color:#450f0f"/>
+    </linearGradient>
+    <linearGradient id="cwGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0d3a5c"/>
+      <stop offset="100%" style="stop-color:#072540"/>
+    </linearGradient>
+    <linearGradient id="ceGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a2e6b"/>
+      <stop offset="100%" style="stop-color:#0f1d45"/>
+    </linearGradient>
+    <linearGradient id="kmsGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4a3800"/>
+      <stop offset="100%" style="stop-color:#2d2200"/>
+    </linearGradient>
+    <filter id="shadow">
+      <feDropShadow dx="1" dy="2" stdDeviation="3" flood-color="#000" flood-opacity="0.5"/>
+    </filter>
+    <marker id="arr" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto">
+      <polygon points="0 0, 7 2.5, 0 5" fill="#4fc3f7"/>
+    </marker>
+    <marker id="arrPurple" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto">
+      <polygon points="0 0, 7 2.5, 0 5" fill="#ce93d8"/>
+    </marker>
+    <marker id="arrGreen" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto">
+      <polygon points="0 0, 7 2.5, 0 5" fill="#a5d6a7"/>
+    </marker>
+    <marker id="arrRed" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto">
+      <polygon points="0 0, 7 2.5, 0 5" fill="#ef9a9a"/>
+    </marker>
+    <marker id="arrOrange" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto">
+      <polygon points="0 0, 7 2.5, 0 5" fill="#ffcc80"/>
+    </marker>
+    <marker id="arrYellow" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto">
+      <polygon points="0 0, 7 2.5, 0 5" fill="#fff176"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="980" height="700" fill="url(#bg)" rx="12"/>
+
+  <!-- Title -->
+  <text x="490" y="34" text-anchor="middle" fill="#ffffff" font-size="17" font-weight="700" letter-spacing="0.5">AWS FinOps Cost Optimization Platform</text>
+  <text x="490" y="52" text-anchor="middle" fill="#90caf9" font-size="10.5">Serverless · Python 3.9 · EventBridge · Lambda · SNS · Cost Explorer · AWS Budgets · KMS</text>
+  <line x1="40" y1="62" x2="940" y2="62" stroke="#2c5282" stroke-width="1"/>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SECTION 1: EventBridge (left column, top)  -->
+  <!-- ═══════════════════════════════════════════ -->
+  <rect x="30" y="75" width="260" height="220" rx="9" fill="url(#ebGrad)" stroke="#9c27b0" stroke-width="1.5" filter="url(#shadow)"/>
+  <rect x="30" y="75" width="260" height="34" rx="9" fill="#7b1fa2"/>
+  <rect x="30" y="99" width="260" height="10" fill="#7b1fa2"/>
+  <text x="160" y="94" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">⏰ EventBridge Rules</text>
+  <text x="160" y="108" text-anchor="middle" fill="#e1bee7" font-size="9">Scheduled Triggers · Retry: 3 · DLQ on failure</text>
+
+  <!-- Rule 1: Daily Cost Report -->
+  <rect x="46" y="118" width="228" height="50" rx="6" fill="#2d0f45" stroke="#ab47bc" stroke-width="1.2"/>
+  <text x="160" y="136" text-anchor="middle" fill="#ce93d8" font-size="10.5" font-weight="700">Daily Cost Report</text>
+  <text x="160" y="151" text-anchor="middle" fill="#78909c" font-size="9">cron(0 8 * * ? *)  —  08:00 UTC daily</text>
+  <text x="160" y="163" text-anchor="middle" fill="#78909c" font-size="8.5">max_event_age: 1 hr</text>
+
+  <!-- Rule 2: Hourly Anomaly -->
+  <rect x="46" y="175" width="228" height="50" rx="6" fill="#2d0f45" stroke="#ab47bc" stroke-width="1.2"/>
+  <text x="160" y="193" text-anchor="middle" fill="#ce93d8" font-size="10.5" font-weight="700">Hourly Anomaly Check</text>
+  <text x="160" y="208" text-anchor="middle" fill="#78909c" font-size="9">rate(1 hour)</text>
+  <text x="160" y="220" text-anchor="middle" fill="#78909c" font-size="8.5">max_event_age: 1 hr</text>
+
+  <!-- Rule 3: Weekly Optimization -->
+  <rect x="46" y="232" width="228" height="50" rx="6" fill="#2d0f45" stroke="#ab47bc" stroke-width="1.2"/>
+  <text x="160" y="250" text-anchor="middle" fill="#ce93d8" font-size="10.5" font-weight="700">Weekly Optimization</text>
+  <text x="160" y="265" text-anchor="middle" fill="#78909c" font-size="9">cron(0 9 ? * MON *)  —  Mon 09:00 UTC</text>
+  <text x="160" y="277" text-anchor="middle" fill="#78909c" font-size="8.5">max_event_age: 1 hr</text>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- SECTION 2: Lambda Functions (center column)        -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <rect x="330" y="75" width="290" height="390" rx="9" fill="url(#lambdaGrad)" stroke="#388e3c" stroke-width="1.5" filter="url(#shadow)"/>
+  <rect x="330" y="75" width="290" height="34" rx="9" fill="#2e7d32"/>
+  <rect x="330" y="99" width="290" height="10" fill="#2e7d32"/>
+  <text x="475" y="94" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">λ Lambda Functions  (Python 3.9)</text>
+  <text x="475" y="108" text-anchor="middle" fill="#c8e6c9" font-size="9">Separate IAM roles · least-privilege · KMS env vars</text>
+
+  <!-- Lambda 1: Cost Reporter -->
+  <rect x="346" y="118" width="258" height="110" rx="7" fill="#0a1f07" stroke="#66bb6a" stroke-width="1.3"/>
+  <text x="475" y="137" text-anchor="middle" fill="#a5d6a7" font-size="11" font-weight="700">📊 Cost Reporter</text>
+  <text x="475" y="152" text-anchor="middle" fill="#78909c" font-size="9">timeout: 60s · runtime: python3.9</text>
+  <line x1="356" y1="158" x2="594" y2="158" stroke="#2e7d32" stroke-width="0.7"/>
+  <text x="356" y="172" fill="#81c784" font-size="8.5" font-weight="600">IAM permissions:</text>
+  <text x="356" y="185" fill="#78909c" font-size="8">ce:GetCostAndUsage · ce:GetCostForecast</text>
+  <text x="356" y="197" fill="#78909c" font-size="8">sns:Publish · kms:Decrypt/GenerateDataKey</text>
+  <text x="356" y="209" fill="#78909c" font-size="8">logs:CreateLogStream · logs:PutLogEvents</text>
+  <text x="356" y="221" fill="#546e7a" font-size="8">env: SNS_TOPIC_ARN · MONTHLY_BUDGET</text>
+
+  <!-- Lambda 2: Anomaly Detector -->
+  <rect x="346" y="238" width="258" height="110" rx="7" fill="#0a1f07" stroke="#66bb6a" stroke-width="1.3"/>
+  <text x="475" y="257" text-anchor="middle" fill="#a5d6a7" font-size="11" font-weight="700">🚨 Anomaly Detector</text>
+  <text x="475" y="272" text-anchor="middle" fill="#78909c" font-size="9">timeout: 60s · runtime: python3.9</text>
+  <line x1="356" y1="278" x2="594" y2="278" stroke="#2e7d32" stroke-width="0.7"/>
+  <text x="356" y="292" fill="#81c784" font-size="8.5" font-weight="600">IAM permissions:</text>
+  <text x="356" y="305" fill="#78909c" font-size="8">ce:GetCostAndUsage</text>
+  <text x="356" y="317" fill="#78909c" font-size="8">sns:Publish · kms:Decrypt/GenerateDataKey</text>
+  <text x="356" y="329" fill="#78909c" font-size="8">logs:CreateLogStream · logs:PutLogEvents</text>
+  <text x="356" y="341" fill="#546e7a" font-size="8">env: SNS_TOPIC_ARN · ANOMALY_THRESHOLD</text>
+
+  <!-- Lambda 3: Resource Optimizer -->
+  <rect x="346" y="358" width="258" height="95" rx="7" fill="#0a1f07" stroke="#66bb6a" stroke-width="1.3"/>
+  <text x="475" y="377" text-anchor="middle" fill="#a5d6a7" font-size="11" font-weight="700">🔧 Resource Optimizer</text>
+  <text x="475" y="392" text-anchor="middle" fill="#78909c" font-size="9">timeout: 120s · runtime: python3.9</text>
+  <line x1="356" y1="398" x2="594" y2="398" stroke="#2e7d32" stroke-width="0.7"/>
+  <text x="356" y="412" fill="#81c784" font-size="8.5" font-weight="600">IAM permissions:</text>
+  <text x="356" y="425" fill="#78909c" font-size="8">ec2:DescribeInstances/Volumes/Snapshots</text>
+  <text x="356" y="437" fill="#78909c" font-size="8">sns:Publish · kms:Decrypt/GenerateDataKey</text>
+  <text x="356" y="449" fill="#546e7a" font-size="8">env: SNS_TOPIC_ARN · MIN_SAVINGS_THRESHOLD</text>
+
+  <!-- ════════════════════════════════════ -->
+  <!-- SECTION 3: Data Sources (right top) -->
+  <!-- ════════════════════════════════════ -->
+
+  <!-- Cost Explorer -->
+  <rect x="670" y="75" width="180" height="110" rx="9" fill="url(#ceGrad)" stroke="#3f51b5" stroke-width="1.5" filter="url(#shadow)"/>
+  <rect x="670" y="75" width="180" height="32" rx="9" fill="#283593"/>
+  <rect x="670" y="97" width="180" height="10" fill="#283593"/>
+  <text x="760" y="92" text-anchor="middle" fill="#fff" font-size="11" font-weight="700">💰 Cost Explorer</text>
+  <text x="760" y="107" text-anchor="middle" fill="#c5cae9" font-size="9">AWS CE API</text>
+  <text x="760" y="122" text-anchor="middle" fill="#78909c" font-size="9">GetCostAndUsage</text>
+  <text x="760" y="136" text-anchor="middle" fill="#78909c" font-size="9">GetCostForecast</text>
+  <text x="760" y="150" text-anchor="middle" fill="#7986cb" font-size="8.5">→ Cost Reporter</text>
+  <text x="760" y="162" text-anchor="middle" fill="#7986cb" font-size="8.5">→ Anomaly Detector</text>
+  <text x="760" y="175" text-anchor="middle" fill="#78909c" font-size="8">resource: "*"</text>
+
+  <!-- EC2 Inventory -->
+  <rect x="670" y="200" width="180" height="100" rx="9" fill="#1a2a1a" stroke="#43a047" stroke-width="1.5" filter="url(#shadow)"/>
+  <rect x="670" y="200" width="180" height="32" rx="9" fill="#2e7d32"/>
+  <rect x="670" y="222" width="180" height="10" fill="#2e7d32"/>
+  <text x="760" y="217" text-anchor="middle" fill="#fff" font-size="11" font-weight="700">🖥 EC2 Inventory</text>
+  <text x="760" y="232" text-anchor="middle" fill="#c8e6c9" font-size="9">AWS EC2 API</text>
+  <text x="760" y="247" text-anchor="middle" fill="#78909c" font-size="9">DescribeInstances</text>
+  <text x="760" y="260" text-anchor="middle" fill="#78909c" font-size="9">DescribeVolumes</text>
+  <text x="760" y="273" text-anchor="middle" fill="#78909c" font-size="9">DescribeSnapshots</text>
+  <text x="760" y="288" text-anchor="middle" fill="#546e7a" font-size="8">→ Resource Optimizer</text>
+
+  <!-- AWS Budgets -->
+  <rect x="670" y="318" width="180" height="145" rx="9" fill="#1a1a00" stroke="#f9a825" stroke-width="1.5" filter="url(#shadow)"/>
+  <rect x="670" y="318" width="180" height="32" rx="9" fill="#f57f17"/>
+  <rect x="670" y="340" width="180" height="10" fill="#f57f17"/>
+  <text x="760" y="335" text-anchor="middle" fill="#fff" font-size="11" font-weight="700">💸 AWS Budgets</text>
+  <text x="760" y="350" text-anchor="middle" fill="#fff9c4" font-size="9">Monthly budget alert</text>
+  <text x="760" y="367" text-anchor="middle" fill="#78909c" font-size="9" font-weight="600">Thresholds (ACTUAL):</text>
+  <text x="760" y="381" text-anchor="middle" fill="#fff176" font-size="9">50% · 75% · 90%</text>
+  <text x="760" y="396" text-anchor="middle" fill="#78909c" font-size="9" font-weight="600">Threshold (FORECASTED):</text>
+  <text x="760" y="410" text-anchor="middle" fill="#fff176" font-size="9">100%</text>
+  <text x="760" y="427" text-anchor="middle" fill="#f9a825" font-size="8.5">→ publishes to SNS</text>
+  <text x="760" y="440" text-anchor="middle" fill="#546e7a" font-size="8">AllowAWSBudgetsPublish</text>
+  <text x="760" y="453" text-anchor="middle" fill="#546e7a" font-size="8">in SNS topic policy</text>
+
+  <!-- ════════════════════════════════════ -->
+  <!-- SECTION 4: SNS                      -->
+  <!-- ════════════════════════════════════ -->
+  <rect x="670" y="478" width="180" height="100" rx="9" fill="url(#snsGrad)" stroke="#e53935" stroke-width="1.5" filter="url(#shadow)"/>
+  <rect x="670" y="478" width="180" height="32" rx="9" fill="#c62828"/>
+  <rect x="670" y="500" width="180" height="10" fill="#c62828"/>
+  <text x="760" y="495" text-anchor="middle" fill="#fff" font-size="11" font-weight="700">📣 SNS Topic</text>
+  <text x="760" y="510" text-anchor="middle" fill="#ffcdd2" font-size="9">cost-alerts · KMS-encrypted</text>
+  <text x="760" y="526" text-anchor="middle" fill="#78909c" font-size="9">Subscribers:</text>
+  <text x="760" y="540" text-anchor="middle" fill="#ef9a9a" font-size="9">📧 Email  (var.alert_email)</text>
+  <text x="760" y="554" text-anchor="middle" fill="#78909c" font-size="8.5">Sources: 3× Lambda + Budgets</text>
+  <text x="760" y="567" text-anchor="middle" fill="#78909c" font-size="8.5">+ 3× CW Alarms (Lambda errors)</text>
+
+  <!-- ════════════════════════════════════════════════════ -->
+  <!-- SECTION 5: Bottom row — CloudWatch, SQS DLQ, KMS   -->
+  <!-- ════════════════════════════════════════════════════ -->
+
+  <!-- CloudWatch Logs + Alarms -->
+  <rect x="30" y="320" width="260" height="230" rx="9" fill="url(#cwGrad)" stroke="#1976d2" stroke-width="1.5" filter="url(#shadow)"/>
+  <rect x="30" y="320" width="260" height="32" rx="9" fill="#1565c0"/>
+  <rect x="30" y="342" width="260" height="10" fill="#1565c0"/>
+  <text x="160" y="337" text-anchor="middle" fill="#fff" font-size="11" font-weight="700">☁ CloudWatch</text>
+  <text x="160" y="352" text-anchor="middle" fill="#bbdefb" font-size="9">Log Groups (KMS-encrypted) + Metric Alarms</text>
+
+  <!-- Log Groups -->
+  <rect x="44" y="362" width="228" height="82" rx="6" fill="#07192e" stroke="#1e88e5" stroke-width="1"/>
+  <text x="158" y="378" text-anchor="middle" fill="#64b5f6" font-size="9.5" font-weight="700">Log Groups  (retention: var.log_retention_days)</text>
+  <text x="52" y="394" fill="#78909c" font-size="8.5">/aws/lambda/…-cost-reporter</text>
+  <text x="52" y="408" fill="#78909c" font-size="8.5">/aws/lambda/…-anomaly-detector</text>
+  <text x="52" y="422" fill="#78909c" font-size="8.5">/aws/lambda/…-resource-optimizer</text>
+  <text x="52" y="436" fill="#546e7a" font-size="8">All encrypted with KMS key</text>
+
+  <!-- Metric Alarms -->
+  <rect x="44" y="452" width="228" height="84" rx="6" fill="#07192e" stroke="#1e88e5" stroke-width="1"/>
+  <text x="158" y="468" text-anchor="middle" fill="#64b5f6" font-size="9.5" font-weight="700">Metric Alarms  (Lambda Errors ≥ 1)</text>
+  <text x="52" y="484" fill="#78909c" font-size="8.5">cost-reporter-errors → SNS</text>
+  <text x="52" y="498" fill="#78909c" font-size="8.5">anomaly-detector-errors → SNS</text>
+  <text x="52" y="512" fill="#78909c" font-size="8.5">resource-optimizer-errors → SNS</text>
+  <text x="52" y="526" fill="#546e7a" font-size="8">period: 300s · eval_periods: 1 · stat: Sum</text>
+
+  <!-- SQS DLQ -->
+  <rect x="330" y="488" width="170" height="90" rx="9" fill="#1a0a00" stroke="#ff6f00" stroke-width="1.5" filter="url(#shadow)"/>
+  <rect x="330" y="488" width="170" height="32" rx="9" fill="#e65100"/>
+  <rect x="330" y="510" width="170" height="10" fill="#e65100"/>
+  <text x="415" y="505" text-anchor="middle" fill="#fff" font-size="11" font-weight="700">📥 SQS DLQ</text>
+  <text x="415" y="520" text-anchor="middle" fill="#ffe0b2" font-size="9">eventbridge-dlq</text>
+  <text x="415" y="535" text-anchor="middle" fill="#78909c" font-size="8.5">retention: 14 days</text>
+  <text x="415" y="549" text-anchor="middle" fill="#78909c" font-size="8.5">encrypted: alias/aws/sqs</text>
+  <text x="415" y="563" text-anchor="middle" fill="#78909c" font-size="8.5">All 3 EventBridge targets</text>
+
+  <!-- KMS Key -->
+  <rect x="330" y="595" width="170" height="80" rx="9" fill="url(#kmsGrad)" stroke="#f9a825" stroke-width="1.5" filter="url(#shadow)"/>
+  <rect x="330" y="595" width="170" height="32" rx="9" fill="#f57f17"/>
+  <rect x="330" y="617" width="170" height="10" fill="#f57f17"/>
+  <text x="415" y="612" text-anchor="middle" fill="#fff" font-size="11" font-weight="700">🔑 KMS Key</text>
+  <text x="415" y="628" text-anchor="middle" fill="#fff9c4" font-size="9">alias/finops · rotation: ON</text>
+  <text x="415" y="643" text-anchor="middle" fill="#78909c" font-size="8.5">Encrypts: SNS · 3× CW Log Groups</text>
+  <text x="415" y="657" text-anchor="middle" fill="#78909c" font-size="8.5">deletion_window: 7 days</text>
+
+  <!-- IAM note -->
+  <rect x="30" y="568" width="260" height="50" rx="7" fill="#1a2a0a" stroke="#66bb6a" stroke-width="1.2"/>
+  <text x="160" y="585" text-anchor="middle" fill="#a5d6a7" font-size="9.5" font-weight="700">🔑 IAM  —  3 separate Lambda roles</text>
+  <text x="160" y="599" text-anchor="middle" fill="#78909c" font-size="8.5">cost-reporter-role · anomaly-detector-role</text>
+  <text x="160" y="611" text-anchor="middle" fill="#78909c" font-size="8.5">resource-optimizer-role  ·  least-privilege policies</text>
+
+  <!-- ════════════════════ -->
+  <!-- ARROWS               -->
+  <!-- ════════════════════ -->
+
+  <!-- EventBridge Rule 1 → Lambda Cost Reporter -->
+  <line x1="290" y1="143" x2="344" y2="173" stroke="#ce93d8" stroke-width="1.5" marker-end="url(#arrPurple)"/>
+
+  <!-- EventBridge Rule 2 → Lambda Anomaly Detector -->
+  <line x1="290" y1="200" x2="344" y2="290" stroke="#ce93d8" stroke-width="1.5" marker-end="url(#arrPurple)"/>
+
+  <!-- EventBridge Rule 3 → Lambda Resource Optimizer -->
+  <line x1="290" y1="257" x2="344" y2="400" stroke="#ce93d8" stroke-width="1.5" marker-end="url(#arrPurple)"/>
+
+  <!-- Cost Explorer → Cost Reporter (via query) -->
+  <line x1="670" y1="150" x2="606" y2="170" stroke="#7986cb" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arr)"/>
+
+  <!-- Cost Explorer → Anomaly Detector -->
+  <line x1="670" y1="165" x2="606" y2="280" stroke="#7986cb" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arr)"/>
+
+  <!-- EC2 → Resource Optimizer -->
+  <line x1="670" y1="260" x2="606" y2="405" stroke="#66bb6a" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arrGreen)"/>
+
+  <!-- Lambda Cost Reporter → SNS -->
+  <line x1="606" y1="165" x2="668" y2="520" stroke="#a5d6a7" stroke-width="1.5" marker-end="url(#arrRed)"/>
+
+  <!-- Lambda Anomaly Detector → SNS -->
+  <line x1="620" y1="293" x2="668" y2="527" stroke="#a5d6a7" stroke-width="1.5" marker-end="url(#arrRed)"/>
+
+  <!-- Lambda Resource Optimizer → SNS -->
+  <line x1="606" y1="405" x2="670" y2="534" stroke="#a5d6a7" stroke-width="1.5" marker-end="url(#arrRed)"/>
+
+  <!-- Budgets → SNS -->
+  <line x1="760" y1="463" x2="760" y2="476" stroke="#fff176" stroke-width="1.5" marker-end="url(#arrYellow)"/>
+
+  <!-- CW Alarms → SNS (goes right then up) -->
+  <line x1="290" y1="494" x2="660" y2="545" stroke="#64b5f6" stroke-width="1.4" stroke-dasharray="5,3" marker-end="url(#arrRed)"/>
+
+  <!-- EventBridge DLQ arrows (all 3 rules to SQS) -->
+  <line x1="160" y1="295" x2="330" y2="530" stroke="#ff6f00" stroke-width="1.2" stroke-dasharray="4,3" marker-end="url(#arrOrange)"/>
+
+  <!-- KMS encrypts SNS -->
+  <line x1="502" y1="620" x2="668" y2="530" stroke="#f9a825" stroke-width="1.2" stroke-dasharray="4,3" marker-end="url(#arrRed)"/>
+
+  <!-- KMS encrypts CW Log Groups -->
+  <line x1="330" y1="630" x2="244" y2="460" stroke="#f9a825" stroke-width="1.2" stroke-dasharray="4,3" marker-end="url(#arr)"/>
+
+  <!-- Lambda → CloudWatch Logs -->
+  <line x1="330" y1="200" x2="292" y2="420" stroke="#4fc3f7" stroke-width="1.3" stroke-dasharray="4,3" marker-end="url(#arr)"/>
+
+  <!-- ════════════════════ -->
+  <!-- LEGEND              -->
+  <!-- ════════════════════ -->
+  <rect x="30" y="633" width="260" height="52" rx="6" fill="#0a1220" stroke="#37474f" stroke-width="1"/>
+  <text x="160" y="648" text-anchor="middle" fill="#78909c" font-size="8.5" font-weight="700">LEGEND</text>
+  <line x1="42" y1="660" x2="58" y2="660" stroke="#ce93d8" stroke-width="1.5" marker-end="url(#arrPurple)"/>
+  <text x="63" y="664" fill="#90a4ae" font-size="8">Trigger</text>
+  <line x1="105" y1="660" x2="121" y2="660" stroke="#7986cb" stroke-width="1.5" stroke-dasharray="4,2" marker-end="url(#arr)"/>
+  <text x="126" y="664" fill="#90a4ae" font-size="8">API call</text>
+  <line x1="168" y1="660" x2="184" y2="660" stroke="#a5d6a7" stroke-width="1.5" marker-end="url(#arrRed)"/>
+  <text x="189" y="664" fill="#90a4ae" font-size="8">Publish</text>
+  <line x1="230" y1="660" x2="246" y2="660" stroke="#f9a825" stroke-width="1.5" stroke-dasharray="4,2" marker-end="url(#arr)"/>
+  <text x="251" y="664" fill="#90a4ae" font-size="8">Encrypt</text>
+  <line x1="42" y1="677" x2="58" y2="677" stroke="#ff6f00" stroke-width="1.5" stroke-dasharray="4,2" marker-end="url(#arrOrange)"/>
+  <text x="63" y="681" fill="#90a4ae" font-size="8">DLQ fallback</text>
+  <line x1="140" y1="677" x2="156" y2="677" stroke="#4fc3f7" stroke-width="1.5" stroke-dasharray="4,2" marker-end="url(#arr)"/>
+  <text x="161" y="681" fill="#90a4ae" font-size="8">Logs</text>
+  <text x="210" y="681" fill="#546e7a" font-size="8">Terraform-managed</text>
+</svg>
