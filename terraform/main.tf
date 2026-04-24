@@ -18,6 +18,14 @@ provider "aws" {
 
 data "aws_caller_identity" "current" {}
 
+locals {
+  common_tags = {
+    Project     = var.project_name
+    Environment = var.environment
+    ManagedBy   = "terraform"
+  }
+}
+
 data "aws_iam_policy_document" "kms_finops" {
   statement {
     sid    = "EnableAccountRootAdministration"
@@ -79,6 +87,7 @@ resource "aws_sns_topic" "cost_alerts" {
   name              = "${var.project_name}-cost-alerts"
   display_name      = "AWS Cost Optimization Alerts"
   kms_master_key_id = aws_kms_key.finops.id
+  tags              = local.common_tags
 }
 
 resource "aws_sns_topic_subscription" "cost_alerts_email" {
@@ -116,6 +125,7 @@ resource "aws_kms_key" "finops" {
   deletion_window_in_days = 7
   enable_key_rotation     = true
   policy                  = data.aws_iam_policy_document.kms_finops.json
+  tags                    = local.common_tags
 }
 
 resource "aws_kms_alias" "finops" {
@@ -126,25 +136,35 @@ resource "aws_kms_alias" "finops" {
 # CloudWatch Log Groups
 resource "aws_cloudwatch_log_group" "cost_reporter" {
   name              = "/aws/lambda/${var.project_name}-cost-reporter"
-  retention_in_days = 7
+  retention_in_days = var.log_retention_days
   kms_key_id        = aws_kms_key.finops.arn
+  tags              = local.common_tags
 }
 
 resource "aws_cloudwatch_log_group" "anomaly_detector" {
   name              = "/aws/lambda/${var.project_name}-anomaly-detector"
-  retention_in_days = 7
+  retention_in_days = var.log_retention_days
   kms_key_id        = aws_kms_key.finops.arn
+  tags              = local.common_tags
 }
 
 resource "aws_cloudwatch_log_group" "resource_optimizer" {
   name              = "/aws/lambda/${var.project_name}-resource-optimizer"
-  retention_in_days = 7
+  retention_in_days = var.log_retention_days
   kms_key_id        = aws_kms_key.finops.arn
+  tags              = local.common_tags
 }
 
-# IAM Role for Lambda Functions
-resource "aws_iam_role" "lambda_finops" {
-  name = "${var.project_name}-lambda-role"
+resource "aws_sqs_queue" "eventbridge_dlq" {
+  name                      = "${var.project_name}-eventbridge-dlq"
+  message_retention_seconds = 1209600
+  kms_master_key_id         = "alias/aws/sqs"
+  tags                      = local.common_tags
+}
+
+# IAM Roles for Lambda Functions
+resource "aws_iam_role" "cost_reporter_lambda" {
+  name = "${var.project_name}-cost-reporter-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -156,12 +176,44 @@ resource "aws_iam_role" "lambda_finops" {
       }
     }]
   })
+  tags = local.common_tags
 }
 
-# IAM Policy for Cost Explorer Access
-resource "aws_iam_role_policy" "lambda_cost_explorer" {
-  name = "cost-explorer-access"
-  role = aws_iam_role.lambda_finops.id
+resource "aws_iam_role" "anomaly_detector_lambda" {
+  name = "${var.project_name}-anomaly-detector-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action = "sts:AssumeRole"
+      Effect = "Allow"
+      Principal = {
+        Service = "lambda.amazonaws.com"
+      }
+    }]
+  })
+  tags = local.common_tags
+}
+
+resource "aws_iam_role" "resource_optimizer_lambda" {
+  name = "${var.project_name}-resource-optimizer-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action = "sts:AssumeRole"
+      Effect = "Allow"
+      Principal = {
+        Service = "lambda.amazonaws.com"
+      }
+    }]
+  })
+  tags = local.common_tags
+}
+
+resource "aws_iam_role_policy" "cost_reporter_policy" {
+  name = "cost-reporter-access"
+  role = aws_iam_role.cost_reporter_lambda.id
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -174,6 +226,97 @@ resource "aws_iam_role_policy" "lambda_cost_explorer" {
         ]
         Resource = "*"
       },
+      {
+        Effect = "Allow"
+        Action = [
+          "sns:Publish"
+        ]
+        Resource = aws_sns_topic.cost_alerts.arn
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "kms:Decrypt",
+          "kms:GenerateDataKey",
+          "kms:DescribeKey"
+        ]
+        Resource = aws_kms_key.finops.arn
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogGroup"
+        ]
+        Resource = aws_cloudwatch_log_group.cost_reporter.arn
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogStream",
+          "logs:PutLogEvents"
+        ]
+        Resource = "${aws_cloudwatch_log_group.cost_reporter.arn}:*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "anomaly_detector_policy" {
+  name = "anomaly-detector-access"
+  role = aws_iam_role.anomaly_detector_lambda.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "ce:GetCostAndUsage"
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "sns:Publish"
+        ]
+        Resource = aws_sns_topic.cost_alerts.arn
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "kms:Decrypt",
+          "kms:GenerateDataKey",
+          "kms:DescribeKey"
+        ]
+        Resource = aws_kms_key.finops.arn
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogGroup"
+        ]
+        Resource = aws_cloudwatch_log_group.anomaly_detector.arn
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogStream",
+          "logs:PutLogEvents"
+        ]
+        Resource = "${aws_cloudwatch_log_group.anomaly_detector.arn}:*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "resource_optimizer_policy" {
+  name = "resource-optimizer-access"
+  role = aws_iam_role.resource_optimizer_lambda.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
       {
         Effect = "Allow"
         Action = [
@@ -204,11 +347,7 @@ resource "aws_iam_role_policy" "lambda_cost_explorer" {
         Action = [
           "logs:CreateLogGroup"
         ]
-        Resource = [
-          aws_cloudwatch_log_group.cost_reporter.arn,
-          aws_cloudwatch_log_group.anomaly_detector.arn,
-          aws_cloudwatch_log_group.resource_optimizer.arn
-        ]
+        Resource = aws_cloudwatch_log_group.resource_optimizer.arn
       },
       {
         Effect = "Allow"
@@ -216,11 +355,7 @@ resource "aws_iam_role_policy" "lambda_cost_explorer" {
           "logs:CreateLogStream",
           "logs:PutLogEvents"
         ]
-        Resource = [
-          "${aws_cloudwatch_log_group.cost_reporter.arn}:*",
-          "${aws_cloudwatch_log_group.anomaly_detector.arn}:*",
-          "${aws_cloudwatch_log_group.resource_optimizer.arn}:*"
-        ]
+        Resource = "${aws_cloudwatch_log_group.resource_optimizer.arn}:*"
       }
     ]
   })
@@ -236,11 +371,12 @@ data "archive_file" "cost_reporter" {
 resource "aws_lambda_function" "cost_reporter" {
   filename         = data.archive_file.cost_reporter.output_path
   function_name    = "${var.project_name}-cost-reporter"
-  role             = aws_iam_role.lambda_finops.arn
+  role             = aws_iam_role.cost_reporter_lambda.arn
   handler          = "lambda_function.lambda_handler"
   source_code_hash = data.archive_file.cost_reporter.output_base64sha256
   runtime          = "python3.9"
   timeout          = 60
+  tags             = local.common_tags
 
   environment {
     variables = {
@@ -262,11 +398,12 @@ data "archive_file" "anomaly_detector" {
 resource "aws_lambda_function" "anomaly_detector" {
   filename         = data.archive_file.anomaly_detector.output_path
   function_name    = "${var.project_name}-anomaly-detector"
-  role             = aws_iam_role.lambda_finops.arn
+  role             = aws_iam_role.anomaly_detector_lambda.arn
   handler          = "lambda_function.lambda_handler"
   source_code_hash = data.archive_file.anomaly_detector.output_base64sha256
   runtime          = "python3.9"
   timeout          = 60
+  tags             = local.common_tags
 
   environment {
     variables = {
@@ -288,11 +425,12 @@ data "archive_file" "resource_optimizer" {
 resource "aws_lambda_function" "resource_optimizer" {
   filename         = data.archive_file.resource_optimizer.output_path
   function_name    = "${var.project_name}-resource-optimizer"
-  role             = aws_iam_role.lambda_finops.arn
+  role             = aws_iam_role.resource_optimizer_lambda.arn
   handler          = "lambda_function.lambda_handler"
   source_code_hash = data.archive_file.resource_optimizer.output_base64sha256
   runtime          = "python3.9"
   timeout          = 120
+  tags             = local.common_tags
 
   environment {
     variables = {
@@ -309,12 +447,20 @@ resource "aws_cloudwatch_event_rule" "daily_cost_report" {
   name                = "${var.project_name}-daily-cost-report"
   description         = "Trigger daily cost report"
   schedule_expression = "cron(0 8 * * ? *)" # 8 AM UTC daily
+  tags                = local.common_tags
 }
 
 resource "aws_cloudwatch_event_target" "daily_cost_report" {
   rule      = aws_cloudwatch_event_rule.daily_cost_report.name
   target_id = "cost-reporter-lambda"
   arn       = aws_lambda_function.cost_reporter.arn
+  dead_letter_config {
+    arn = aws_sqs_queue.eventbridge_dlq.arn
+  }
+  retry_policy {
+    maximum_event_age_in_seconds = 3600
+    maximum_retry_attempts       = 3
+  }
 }
 
 resource "aws_lambda_permission" "allow_eventbridge_cost_reporter" {
@@ -329,12 +475,20 @@ resource "aws_cloudwatch_event_rule" "hourly_anomaly_check" {
   name                = "${var.project_name}-hourly-anomaly"
   description         = "Hourly cost anomaly detection"
   schedule_expression = "rate(1 hour)"
+  tags                = local.common_tags
 }
 
 resource "aws_cloudwatch_event_target" "hourly_anomaly_check" {
   rule      = aws_cloudwatch_event_rule.hourly_anomaly_check.name
   target_id = "anomaly-detector-lambda"
   arn       = aws_lambda_function.anomaly_detector.arn
+  dead_letter_config {
+    arn = aws_sqs_queue.eventbridge_dlq.arn
+  }
+  retry_policy {
+    maximum_event_age_in_seconds = 3600
+    maximum_retry_attempts       = 3
+  }
 }
 
 resource "aws_lambda_permission" "allow_eventbridge_anomaly_detector" {
@@ -349,12 +503,20 @@ resource "aws_cloudwatch_event_rule" "weekly_optimization" {
   name                = "${var.project_name}-weekly-optimization"
   description         = "Weekly resource optimization scan"
   schedule_expression = "cron(0 9 ? * MON *)" # 9 AM UTC every Monday
+  tags                = local.common_tags
 }
 
 resource "aws_cloudwatch_event_target" "weekly_optimization" {
   rule      = aws_cloudwatch_event_rule.weekly_optimization.name
   target_id = "resource-optimizer-lambda"
   arn       = aws_lambda_function.resource_optimizer.arn
+  dead_letter_config {
+    arn = aws_sqs_queue.eventbridge_dlq.arn
+  }
+  retry_policy {
+    maximum_event_age_in_seconds = 3600
+    maximum_retry_attempts       = 3
+  }
 }
 
 resource "aws_lambda_permission" "allow_eventbridge_resource_optimizer" {
@@ -406,4 +568,82 @@ resource "aws_budgets_budget" "monthly" {
     notification_type         = "FORECASTED"
     subscriber_sns_topic_arns = [aws_sns_topic.cost_alerts.arn]
   }
+}
+
+resource "aws_sqs_queue_policy" "eventbridge_dlq" {
+  queue_url = aws_sqs_queue.eventbridge_dlq.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "AllowEventBridgeSendMessage"
+        Effect = "Allow"
+        Principal = {
+          Service = "events.amazonaws.com"
+        }
+        Action   = "sqs:SendMessage"
+        Resource = aws_sqs_queue.eventbridge_dlq.arn
+        Condition = {
+          ArnEquals = {
+            "aws:SourceArn" = [
+              aws_cloudwatch_event_rule.daily_cost_report.arn,
+              aws_cloudwatch_event_rule.hourly_anomaly_check.arn,
+              aws_cloudwatch_event_rule.weekly_optimization.arn
+            ]
+          }
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_cloudwatch_metric_alarm" "cost_reporter_errors" {
+  alarm_name          = "${var.project_name}-cost-reporter-errors"
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  evaluation_periods  = 1
+  metric_name         = "Errors"
+  namespace           = "AWS/Lambda"
+  period              = 300
+  statistic           = "Sum"
+  threshold           = 1
+  alarm_description   = "Alarm when cost reporter Lambda errors occur"
+  alarm_actions       = [aws_sns_topic.cost_alerts.arn]
+  dimensions = {
+    FunctionName = aws_lambda_function.cost_reporter.function_name
+  }
+  tags = local.common_tags
+}
+
+resource "aws_cloudwatch_metric_alarm" "anomaly_detector_errors" {
+  alarm_name          = "${var.project_name}-anomaly-detector-errors"
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  evaluation_periods  = 1
+  metric_name         = "Errors"
+  namespace           = "AWS/Lambda"
+  period              = 300
+  statistic           = "Sum"
+  threshold           = 1
+  alarm_description   = "Alarm when anomaly detector Lambda errors occur"
+  alarm_actions       = [aws_sns_topic.cost_alerts.arn]
+  dimensions = {
+    FunctionName = aws_lambda_function.anomaly_detector.function_name
+  }
+  tags = local.common_tags
+}
+
+resource "aws_cloudwatch_metric_alarm" "resource_optimizer_errors" {
+  alarm_name          = "${var.project_name}-resource-optimizer-errors"
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  evaluation_periods  = 1
+  metric_name         = "Errors"
+  namespace           = "AWS/Lambda"
+  period              = 300
+  statistic           = "Sum"
+  threshold           = 1
+  alarm_description   = "Alarm when resource optimizer Lambda errors occur"
+  alarm_actions       = [aws_sns_topic.cost_alerts.arn]
+  dimensions = {
+    FunctionName = aws_lambda_function.resource_optimizer.function_name
+  }
+  tags = local.common_tags
 }
