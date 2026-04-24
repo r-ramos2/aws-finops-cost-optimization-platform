@@ -88,7 +88,7 @@ def lambda_handler(event, context):
         min_threshold = Decimal(os.environ['MIN_SAVINGS_THRESHOLD'])
         
         if total_savings >= min_threshold:
-            message = f"Resource Optimization Opportunities\n"
+            message = "Resource Optimization Opportunities\n"
             message += f"Total Potential Monthly Savings: ${total_savings:.2f}\n\n"
             
             # Sort by savings
