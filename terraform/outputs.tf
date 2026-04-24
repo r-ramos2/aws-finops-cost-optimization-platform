@@ -18,6 +18,11 @@ output "resource_optimizer_function_name" {
   value       = aws_lambda_function.resource_optimizer.function_name
 }
 
+output "eventbridge_dlq_url" {
+  description = "URL of EventBridge dead-letter queue"
+  value       = aws_sqs_queue.eventbridge_dlq.id
+}
+
 output "deployment_instructions" {
   value = <<-EOT
     Deployment successful! Next steps:
