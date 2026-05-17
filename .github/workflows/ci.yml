@@ -30,7 +30,7 @@ jobs:
         run: pip install -r requirements-dev.txt
 
       - name: Lint
-        run: ruff check lambda/ tests/
+        run: ruff check .
 
       - name: Run unit tests
         run: pytest -q
