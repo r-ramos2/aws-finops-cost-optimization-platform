@@ -1,6 +1,6 @@
 import boto3
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 import json
 
@@ -11,7 +11,7 @@ def lambda_handler(event, context):
     """Daily cost report with budget tracking"""
     try:
         # Get cost data
-        end_date = datetime.now().date()
+        end_date = datetime.now(timezone.utc).date()
         start_date = end_date - timedelta(days=1)
         month_start = end_date.replace(day=1)
         
