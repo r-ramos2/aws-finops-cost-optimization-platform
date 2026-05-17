@@ -37,13 +37,22 @@ class FakeCEClient:
         }
 
 
-class FakeSNSClient:
-    def __init__(self):
-        self.published = []
+class FakeCEClientNoAnomaly:
+    """Returns identical costs for current and previous periods."""
 
-    def publish(self, **kwargs):
-        self.published.append(kwargs)
-        return {"MessageId": "msg-2"}
+    def get_cost_and_usage(self, **kwargs):
+        return {
+            "ResultsByTime": [
+                {
+                    "Groups": [
+                        {
+                            "Keys": ["AmazonEC2"],
+                            "Metrics": {"UnblendedCost": {"Amount": "20.00"}},
+                        }
+                    ]
+                }
+            ]
+        }
 
 
 def load_module():
@@ -54,13 +63,12 @@ def load_module():
     return module
 
 
-def test_anomaly_detector_publishes_when_threshold_exceeded(monkeypatch):
+def test_anomaly_detector_publishes_when_threshold_exceeded(monkeypatch, fake_sns):
     os.environ["AWS_DEFAULT_REGION"] = "us-east-1"
     os.environ["SNS_TOPIC_ARN"] = "arn:aws:sns:us-east-1:123456789012:test"
     os.environ["ANOMALY_THRESHOLD"] = "30"
 
     module = load_module()
-    fake_sns = FakeSNSClient()
     monkeypatch.setattr(module, "ce_client", FakeCEClient())
     monkeypatch.setattr(module, "sns_client", fake_sns)
 
@@ -70,3 +78,20 @@ def test_anomaly_detector_publishes_when_threshold_exceeded(monkeypatch):
     assert result["statusCode"] == 200
     assert body["anomalies_found"] >= 1
     assert len(fake_sns.published) == 1
+
+
+def test_anomaly_detector_silent_when_no_anomaly(monkeypatch, fake_sns):
+    os.environ["AWS_DEFAULT_REGION"] = "us-east-1"
+    os.environ["SNS_TOPIC_ARN"] = "arn:aws:sns:us-east-1:123456789012:test"
+    os.environ["ANOMALY_THRESHOLD"] = "30"
+
+    module = load_module()
+    monkeypatch.setattr(module, "ce_client", FakeCEClientNoAnomaly())
+    monkeypatch.setattr(module, "sns_client", fake_sns)
+
+    result = module.lambda_handler({}, {})
+    body = json.loads(result["body"])
+
+    assert result["statusCode"] == 200
+    assert body["anomalies_found"] == 0
+    assert len(fake_sns.published) == 0
