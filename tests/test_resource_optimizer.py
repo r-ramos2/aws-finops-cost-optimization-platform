@@ -52,7 +52,7 @@ class FakeEC2Client:
         raise ValueError(name)
 
     def describe_volumes(self, VolumeIds):
-        return {"Volumes": [{"Size": 50}]}
+        return {"Volumes": [{"VolumeId": vid, "Size": 50} for vid in VolumeIds]}
 
 
 class FakeSNSClient:
