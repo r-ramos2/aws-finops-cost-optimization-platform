@@ -1,6 +1,6 @@
 import boto3
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 import json
 
@@ -10,7 +10,7 @@ sns_client = boto3.client('sns')
 def lambda_handler(event, context):
     """Detect cost anomalies by comparing to previous week"""
     try:
-        end_date = datetime.now().date()
+        end_date = datetime.now(timezone.utc).date()
         start_date = end_date - timedelta(days=1)
         week_ago_start = end_date - timedelta(days=8)
         week_ago_end = end_date - timedelta(days=7)
