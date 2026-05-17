@@ -80,6 +80,26 @@ data "aws_iam_policy_document" "kms_finops" {
       values   = [data.aws_caller_identity.current.account_id]
     }
   }
+
+  statement {
+    sid    = "AllowSQSEncryption"
+    effect = "Allow"
+    principals {
+      type        = "Service"
+      identifiers = ["sqs.amazonaws.com"]
+    }
+    actions = [
+      "kms:Decrypt",
+      "kms:GenerateDataKey*",
+      "kms:DescribeKey"
+    ]
+    resources = ["*"]
+    condition {
+      test     = "StringEquals"
+      variable = "aws:SourceAccount"
+      values   = [data.aws_caller_identity.current.account_id]
+    }
+  }
 }
 
 # SNS Topic for Cost Alerts
@@ -158,7 +178,7 @@ resource "aws_cloudwatch_log_group" "resource_optimizer" {
 resource "aws_sqs_queue" "eventbridge_dlq" {
   name                      = "${var.project_name}-eventbridge-dlq"
   message_retention_seconds = 1209600
-  kms_master_key_id         = "alias/aws/sqs"
+  kms_master_key_id         = aws_kms_key.finops.id
   tags                      = local.common_tags
 }
 
@@ -243,13 +263,7 @@ resource "aws_iam_role_policy" "cost_reporter_policy" {
         Resource = aws_kms_key.finops.arn
       },
       {
-        Effect = "Allow"
-        Action = [
-          "logs:CreateLogGroup"
-        ]
-        Resource = aws_cloudwatch_log_group.cost_reporter.arn
-      },
-      {
+        # Log group is pre-created by Terraform; only stream/event permissions needed
         Effect = "Allow"
         Action = [
           "logs:CreateLogStream",
@@ -300,13 +314,7 @@ resource "aws_iam_role_policy" "anomaly_detector_policy" {
         Resource = aws_kms_key.finops.arn
       },
       {
-        Effect = "Allow"
-        Action = [
-          "logs:CreateLogGroup"
-        ]
-        Resource = aws_cloudwatch_log_group.anomaly_detector.arn
-      },
-      {
+        # Log group is pre-created by Terraform; only stream/event permissions needed
         Effect = "Allow"
         Action = [
           "logs:CreateLogStream",
@@ -359,13 +367,7 @@ resource "aws_iam_role_policy" "resource_optimizer_policy" {
         Resource = aws_kms_key.finops.arn
       },
       {
-        Effect = "Allow"
-        Action = [
-          "logs:CreateLogGroup"
-        ]
-        Resource = aws_cloudwatch_log_group.resource_optimizer.arn
-      },
-      {
+        # Log group is pre-created by Terraform; only stream/event permissions needed
         Effect = "Allow"
         Action = [
           "logs:CreateLogStream",
