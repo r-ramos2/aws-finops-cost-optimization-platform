@@ -55,13 +55,20 @@ class FakeEC2Client:
         return {"Volumes": [{"VolumeId": vid, "Size": 50} for vid in VolumeIds]}
 
 
-class FakeSNSClient:
-    def __init__(self):
-        self.published = []
+class FakeEC2ClientClean:
+    """Simulates an account with no optimization opportunities."""
 
-    def publish(self, **kwargs):
-        self.published.append(kwargs)
-        return {"MessageId": "msg-3"}
+    def get_paginator(self, name):
+        if name == "describe_volumes":
+            return FakePaginator([{"Volumes": []}])
+        if name == "describe_instances":
+            return FakePaginator([{"Reservations": []}])
+        if name == "describe_snapshots":
+            return FakePaginator([{"Snapshots": []}])
+        raise ValueError(name)
+
+    def describe_volumes(self, VolumeIds):
+        return {"Volumes": []}
 
 
 def load_module():
@@ -72,13 +79,12 @@ def load_module():
     return module
 
 
-def test_resource_optimizer_reports_savings(monkeypatch):
+def test_resource_optimizer_reports_savings(monkeypatch, fake_sns):
     os.environ["AWS_DEFAULT_REGION"] = "us-east-1"
     os.environ["SNS_TOPIC_ARN"] = "arn:aws:sns:us-east-1:123456789012:test"
     os.environ["MIN_SAVINGS_THRESHOLD"] = "1"
 
     module = load_module()
-    fake_sns = FakeSNSClient()
     monkeypatch.setattr(module, "ec2_client", FakeEC2Client())
     monkeypatch.setattr(module, "sns_client", fake_sns)
 
@@ -89,3 +95,21 @@ def test_resource_optimizer_reports_savings(monkeypatch):
     assert body["total_recommendations"] >= 1
     assert body["total_monthly_savings"] > 0
     assert len(fake_sns.published) == 1
+
+
+def test_resource_optimizer_silent_when_clean(monkeypatch, fake_sns):
+    os.environ["AWS_DEFAULT_REGION"] = "us-east-1"
+    os.environ["SNS_TOPIC_ARN"] = "arn:aws:sns:us-east-1:123456789012:test"
+    os.environ["MIN_SAVINGS_THRESHOLD"] = "1"
+
+    module = load_module()
+    monkeypatch.setattr(module, "ec2_client", FakeEC2ClientClean())
+    monkeypatch.setattr(module, "sns_client", fake_sns)
+
+    result = module.lambda_handler({}, {})
+    body = json.loads(result["body"])
+
+    assert result["statusCode"] == 200
+    assert body["total_recommendations"] == 0
+    assert body["total_monthly_savings"] == 0.0
+    assert len(fake_sns.published) == 0
