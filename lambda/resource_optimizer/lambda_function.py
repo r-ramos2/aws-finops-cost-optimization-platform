@@ -1,8 +1,9 @@
-import boto3
+import json
 import os
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
-import json
+
+import boto3
 
 ec2_client = boto3.client('ec2')
 sns_client = boto3.client('sns')
@@ -12,7 +13,7 @@ def lambda_handler(event, context):
     try:
         recommendations = []
         total_savings = Decimal('0')
-        
+
         # 1. Unattached EBS volumes
         volume_paginator = ec2_client.get_paginator('describe_volumes')
         volumes_iter = volume_paginator.paginate(
@@ -108,32 +109,32 @@ def lambda_handler(event, context):
                         'monthly_savings': monthly_cost,
                         'action': 'Delete if backup no longer needed'
                     })
-        
+
         # Send report if savings found
         min_threshold = Decimal(os.environ['MIN_SAVINGS_THRESHOLD'])
-        
+
         if total_savings >= min_threshold:
             message = "Resource Optimization Opportunities\n"
             message += f"Total Potential Monthly Savings: ${total_savings:.2f}\n\n"
-            
+
             # Sort by savings
             recommendations.sort(key=lambda x: x['monthly_savings'], reverse=True)
-            
+
             for rec in recommendations[:20]:  # Top 20
                 message += f"• {rec['type']}\n"
                 message += f"  ID: {rec['resource_id']}\n"
                 message += f"  Savings: ${rec['monthly_savings']:.2f}/month\n"
                 message += f"  Action: {rec['action']}\n\n"
-            
+
             if len(recommendations) > 20:
                 message += f"\n...and {len(recommendations)-20} more opportunities\n"
-            
+
             sns_client.publish(
                 TopicArn=os.environ['SNS_TOPIC_ARN'],
                 Subject=f"💰 Resource Optimization: ${total_savings:.2f}/mo savings available",
                 Message=message
             )
-        
+
         return {
             'statusCode': 200,
             'body': json.dumps({
@@ -145,7 +146,7 @@ def lambda_handler(event, context):
                 ]
             })
         }
-        
+
     except Exception as e:
         print(f"Error finding optimization opportunities: {str(e)}")
         raise
