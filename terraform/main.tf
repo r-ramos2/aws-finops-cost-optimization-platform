@@ -1,5 +1,5 @@
 terraform {
-  required_version = ">= 1.0"
+  required_version = ">= 1.5.0"
   required_providers {
     aws = {
       source  = "hashicorp/aws"
@@ -256,6 +256,14 @@ resource "aws_iam_role_policy" "cost_reporter_policy" {
           "logs:PutLogEvents"
         ]
         Resource = "${aws_cloudwatch_log_group.cost_reporter.arn}:*"
+      },
+      {
+        # Required so Lambda can write failed async invocations to the DLQ
+        Effect = "Allow"
+        Action = [
+          "sqs:SendMessage"
+        ]
+        Resource = aws_sqs_queue.eventbridge_dlq.arn
       }
     ]
   })
@@ -305,6 +313,14 @@ resource "aws_iam_role_policy" "anomaly_detector_policy" {
           "logs:PutLogEvents"
         ]
         Resource = "${aws_cloudwatch_log_group.anomaly_detector.arn}:*"
+      },
+      {
+        # Required so Lambda can write failed async invocations to the DLQ
+        Effect = "Allow"
+        Action = [
+          "sqs:SendMessage"
+        ]
+        Resource = aws_sqs_queue.eventbridge_dlq.arn
       }
     ]
   })
@@ -356,6 +372,14 @@ resource "aws_iam_role_policy" "resource_optimizer_policy" {
           "logs:PutLogEvents"
         ]
         Resource = "${aws_cloudwatch_log_group.resource_optimizer.arn}:*"
+      },
+      {
+        # Required so Lambda can write failed async invocations to the DLQ
+        Effect = "Allow"
+        Action = [
+          "sqs:SendMessage"
+        ]
+        Resource = aws_sqs_queue.eventbridge_dlq.arn
       }
     ]
   })
@@ -374,7 +398,7 @@ resource "aws_lambda_function" "cost_reporter" {
   role             = aws_iam_role.cost_reporter_lambda.arn
   handler          = "lambda_function.lambda_handler"
   source_code_hash = data.archive_file.cost_reporter.output_base64sha256
-  runtime          = "python3.9"
+  runtime          = "python3.12"
   timeout          = 60
   tags             = local.common_tags
 
@@ -383,6 +407,11 @@ resource "aws_lambda_function" "cost_reporter" {
       SNS_TOPIC_ARN  = aws_sns_topic.cost_alerts.arn
       MONTHLY_BUDGET = var.monthly_budget
     }
+  }
+
+  # Captures events that fail after Lambda's own async retry exhaustion
+  dead_letter_config {
+    target_arn = aws_sqs_queue.eventbridge_dlq.arn
   }
 
   depends_on = [aws_cloudwatch_log_group.cost_reporter]
@@ -401,7 +430,7 @@ resource "aws_lambda_function" "anomaly_detector" {
   role             = aws_iam_role.anomaly_detector_lambda.arn
   handler          = "lambda_function.lambda_handler"
   source_code_hash = data.archive_file.anomaly_detector.output_base64sha256
-  runtime          = "python3.9"
+  runtime          = "python3.12"
   timeout          = 60
   tags             = local.common_tags
 
@@ -410,6 +439,11 @@ resource "aws_lambda_function" "anomaly_detector" {
       SNS_TOPIC_ARN     = aws_sns_topic.cost_alerts.arn
       ANOMALY_THRESHOLD = var.anomaly_threshold_percent
     }
+  }
+
+  # Captures events that fail after Lambda's own async retry exhaustion
+  dead_letter_config {
+    target_arn = aws_sqs_queue.eventbridge_dlq.arn
   }
 
   depends_on = [aws_cloudwatch_log_group.anomaly_detector]
@@ -428,7 +462,7 @@ resource "aws_lambda_function" "resource_optimizer" {
   role             = aws_iam_role.resource_optimizer_lambda.arn
   handler          = "lambda_function.lambda_handler"
   source_code_hash = data.archive_file.resource_optimizer.output_base64sha256
-  runtime          = "python3.9"
+  runtime          = "python3.12"
   timeout          = 120
   tags             = local.common_tags
 
@@ -437,6 +471,11 @@ resource "aws_lambda_function" "resource_optimizer" {
       SNS_TOPIC_ARN         = aws_sns_topic.cost_alerts.arn
       MIN_SAVINGS_THRESHOLD = var.min_savings_threshold
     }
+  }
+
+  # Captures events that fail after Lambda's own async retry exhaustion
+  dead_letter_config {
+    target_arn = aws_sqs_queue.eventbridge_dlq.arn
   }
 
   depends_on = [aws_cloudwatch_log_group.resource_optimizer]
@@ -464,11 +503,12 @@ resource "aws_cloudwatch_event_target" "daily_cost_report" {
 }
 
 resource "aws_lambda_permission" "allow_eventbridge_cost_reporter" {
-  statement_id  = "AllowExecutionFromEventBridgeCostReporter"
-  action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.cost_reporter.function_name
-  principal     = "events.amazonaws.com"
-  source_arn    = aws_cloudwatch_event_rule.daily_cost_report.arn
+  statement_id   = "AllowExecutionFromEventBridgeCostReporter"
+  action         = "lambda:InvokeFunction"
+  function_name  = aws_lambda_function.cost_reporter.function_name
+  principal      = "events.amazonaws.com"
+  source_arn     = aws_cloudwatch_event_rule.daily_cost_report.arn
+  source_account = data.aws_caller_identity.current.account_id
 }
 
 resource "aws_cloudwatch_event_rule" "hourly_anomaly_check" {
@@ -492,11 +532,12 @@ resource "aws_cloudwatch_event_target" "hourly_anomaly_check" {
 }
 
 resource "aws_lambda_permission" "allow_eventbridge_anomaly_detector" {
-  statement_id  = "AllowExecutionFromEventBridgeAnomalyDetector"
-  action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.anomaly_detector.function_name
-  principal     = "events.amazonaws.com"
-  source_arn    = aws_cloudwatch_event_rule.hourly_anomaly_check.arn
+  statement_id   = "AllowExecutionFromEventBridgeAnomalyDetector"
+  action         = "lambda:InvokeFunction"
+  function_name  = aws_lambda_function.anomaly_detector.function_name
+  principal      = "events.amazonaws.com"
+  source_arn     = aws_cloudwatch_event_rule.hourly_anomaly_check.arn
+  source_account = data.aws_caller_identity.current.account_id
 }
 
 resource "aws_cloudwatch_event_rule" "weekly_optimization" {
@@ -520,11 +561,12 @@ resource "aws_cloudwatch_event_target" "weekly_optimization" {
 }
 
 resource "aws_lambda_permission" "allow_eventbridge_resource_optimizer" {
-  statement_id  = "AllowExecutionFromEventBridgeResourceOptimizer"
-  action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.resource_optimizer.function_name
-  principal     = "events.amazonaws.com"
-  source_arn    = aws_cloudwatch_event_rule.weekly_optimization.arn
+  statement_id   = "AllowExecutionFromEventBridgeResourceOptimizer"
+  action         = "lambda:InvokeFunction"
+  function_name  = aws_lambda_function.resource_optimizer.function_name
+  principal      = "events.amazonaws.com"
+  source_arn     = aws_cloudwatch_event_rule.weekly_optimization.arn
+  source_account = data.aws_caller_identity.current.account_id
 }
 
 # Budget Alert
