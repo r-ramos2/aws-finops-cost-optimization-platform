@@ -3,9 +3,15 @@
 *.tfstate
 *.tfstate.backup
 *.tfvars
+*.tfplan
 terraform/cost_reporter.zip
 terraform/anomaly_detector.zip
 terraform/resource_optimizer.zip
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
 
 # Python
 __pycache__/
