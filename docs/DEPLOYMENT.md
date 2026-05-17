@@ -3,7 +3,7 @@
 ## Prerequisites
 
 - AWS account with admin access
-- Terraform installed (>= 1.0)
+- Terraform installed (>= 1.5, < 2.0)
 - AWS CLI configured
 
 ## Step-by-Step Deployment
