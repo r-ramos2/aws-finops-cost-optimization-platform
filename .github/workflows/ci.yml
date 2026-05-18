@@ -57,3 +57,45 @@ jobs:
 
       - name: Terraform validate
         run: terraform validate
+
+  # Static IaC security scan with Checkov.
+  #
+  # Runs in hard-fail mode. Only intentional trade-offs are skipped,
+  # each with an explicit rationale below. Any other HIGH/CRITICAL finding
+  # will break the build.
+  #
+  # Skipped checks and rationale:
+  #   CKV_AWS_117  -- Lambda not in VPC: these functions call AWS service
+  #                   APIs (Cost Explorer, EC2, SNS) that are reachable over
+  #                   the public endpoint. Adding a VPC + NAT Gateway would
+  #                   increase cost and complexity with no security benefit
+  #                   for a single-account serverless FinOps tool.
+  #   CKV_AWS_50   -- Lambda X-Ray tracing disabled: CloudWatch Logs +
+  #                   metric alarms already provide sufficient observability
+  #                   for a scheduled homelab workload. X-Ray adds per-trace
+  #                   cost with no meaningful gain here.
+  #   CKV_AWS_272  -- Lambda reserved concurrency not set: all three
+  #                   functions are scheduled (EventBridge cron/rate), not
+  #                   traffic-driven. Concurrency spikes are not a concern.
+  security-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6.0.0
+
+      - uses: actions/setup-python@v6.1.0
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install Checkov
+        run: pip install -r requirements-dev.txt
+
+      - name: Checkov scan (Terraform)
+        run: |
+          checkov \
+            --directory terraform \
+            --framework terraform \
+            --output cli \
+            --compact \
+            --skip-check CKV_AWS_117,CKV_AWS_50,CKV_AWS_272
