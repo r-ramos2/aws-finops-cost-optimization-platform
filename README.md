@@ -9,7 +9,7 @@ Automated cost monitoring, anomaly detection, and resource optimization for AWS 
 ## Highlights (For Recruiters & Hiring Managers)
 
 - **Business impact**: Surfaces waste, anomalies, and optimization candidates by email so teams can act quickly; material savings depend on follow-up work across the FinOps playbook (often in the ~20–35% range when multiple levers are used).
-- **Production-style controls**: Function-specific least-privilege IAM roles, KMS encryption, EventBridge DLQ for failed deliveries, CloudWatch error alarms, and CI checks for Terraform + Python tests.
+- **Production-style controls**: Function-specific least-privilege IAM roles, KMS encryption, EventBridge DLQ for failed deliveries, CloudWatch error alarms, and CI checks for Terraform + Python tests + Checkov security scan.
 - **Serverless-first**: Event-driven Lambda functions triggered by EventBridge for zero idle costs and automatic scaling.
 - **Cost visibility**: Daily email reports with budget tracking, service-level breakdowns, and month-to-date spend analysis.
 - **FinOps automation**: Detects configurable cost spikes (default 30%+), scans for unattached EBS volumes, stopped instances, and aged snapshots, and emails actionable summaries—without manual runs.
@@ -100,6 +100,7 @@ cat output.json
 ├── README.md                     # This file
 ├── LICENSE                       # MIT License
 ├── .gitignore                    # Git ignore rules
+├── requirements-dev.txt          # Dev dependencies (pytest, ruff, checkov)
 ├── terraform/
 │   ├── main.tf                   # Primary infrastructure definitions
 │   ├── variables.tf              # Input variable declarations
@@ -275,7 +276,7 @@ Top Services:
 **Purpose:** Early cost spike detection (Cost Explorer data is not real-time; this compares the latest complete daily slice the API returns.)
 
 **Functionality:**
-- Compares **yesterday’s** total and per-service costs to the **same weekday one week earlier** (e.g., Tuesday vs the prior Tuesday)
+- Compares **yesterday's** total and per-service costs to the **same weekday one week earlier** (e.g., Tuesday vs the prior Tuesday)
 - Flags increases at or above the configured threshold (default 30%)
 - Sends an email only when at least one service or the overall total crosses the threshold
 
@@ -335,7 +336,7 @@ The figures below mix **common FinOps outcomes** (industry patterns) with **what
 - Delete old versions and incomplete multipart uploads
 - Typical customer scenario: 1TB Standard → 700GB Standard + 300GB Glacier = $7.68/month savings
 
-**Unattached resource cleanup (partially surfaced by this repo’s weekly scan):** 5-10% reduction on storage costs
+**Unattached resource cleanup (partially surfaced by this repo's weekly scan):** 5-10% reduction on storage costs
 - Delete EBS volumes no longer attached to instances
 - Remove old snapshots (90+ days with no associated AMI)
 - Typical customer scenario: 500GB unattached volumes @ $0.10/GB = $50/month savings
@@ -471,6 +472,7 @@ This repository includes baseline automated checks for hiring-manager readabilit
 
 - **Terraform CI checks:** `terraform fmt -check`, `terraform init -backend=false`, and `terraform validate`
 - **Python tests:** Unit tests for report generation, anomaly detection threshold behavior, and optimization recommendation generation
+- **Security scan:** Checkov IaC scan in hard-fail mode; intentional homelab trade-offs are skipped with documented rationale per check in `.github/workflows/ci.yml`
 - **GitHub Actions workflow:** `.github/workflows/ci.yml`
 
 Run checks locally:
@@ -483,6 +485,10 @@ cd terraform
 terraform fmt -check -recursive
 terraform init -backend=false
 terraform validate
+cd ..
+
+checkov --directory terraform --framework terraform --output cli --compact \
+  --skip-check CKV_AWS_117,CKV_AWS_50,CKV_AWS_272,CKV_AWS_338,CKV_AWS_115,CKV_AWS_173,CKV_AWS_111,CKV_AWS_356,CKV_AWS_109
 ```
 
 If you deploy with team workflows, copy `terraform/backend.tf.example` to `terraform/backend.tf` and set your S3 bucket and DynamoDB lock table values.
@@ -496,7 +502,7 @@ If you deploy with team workflows, copy `terraform/backend.tf.example` to `terra
 - [x] EventBridge dead-letter queue for failed deliveries
 - [x] Lambda error alarms routed to SNS notifications
 - [x] Terraform variable validation and parameterized configuration
-- [x] CI checks for Terraform formatting/validation and Python tests
+- [x] CI checks for Terraform formatting/validation, Python unit tests, and Checkov security scan
 - [x] MIT license and repository hygiene (`.gitignore`, documentation)
 - [ ] Remote state backend enabled in your AWS account (`backend.tf`)
 
