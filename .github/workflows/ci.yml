@@ -9,6 +9,12 @@ on:
 permissions:
   contents: read
 
+# Opt into Node.js 24 now to silence the Node.js 20 deprecation warning on
+# hashicorp/setup-terraform@v3.x, which has no v4 release yet. GitHub forces
+# Node.js 24 on all runners from 2026-06-02 regardless.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 # Cancel in-flight runs for the same branch/PR so stale jobs don't waste
 # runner minutes or produce misleading status checks.
 concurrency:
@@ -74,9 +80,20 @@ jobs:
   #                   metric alarms already provide sufficient observability
   #                   for a scheduled homelab workload. X-Ray adds per-trace
   #                   cost with no meaningful gain here.
-  #   CKV_AWS_272  -- Lambda reserved concurrency not set: all three
-  #                   functions are scheduled (EventBridge cron/rate), not
-  #                   traffic-driven. Concurrency spikes are not a concern.
+  #   CKV_AWS_272  -- Lambda reserved concurrency not set: covered by the
+  #                   same rationale as CKV_AWS_115 below.
+  #   CKV_AWS_115  -- Lambda function-level concurrency limit not set: all
+  #                   three functions are scheduled (EventBridge cron/rate),
+  #                   not traffic-driven. Concurrency spikes are not a concern.
+  #   CKV_AWS_338  -- CloudWatch log retention < 1 year: 14-day retention is
+  #                   intentional for a homelab to avoid log storage cost.
+  #                   Adjust var.log_retention_days before using in production.
+  #   CKV_AWS_111  -- IAM policy allows write without resource constraint: the
+  #   CKV_AWS_356     KMS root key policy must grant kms:* to the account root
+  #   CKV_AWS_109     principal with Resource: "*" — this is the AWS-required
+  #                   pattern for KMS key administration and cannot be scoped
+  #                   further. All other IAM policies in this project are
+  #                   fully resource-scoped.
   security-scan:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -98,4 +115,4 @@ jobs:
             --framework terraform \
             --output cli \
             --compact \
-            --skip-check CKV_AWS_117,CKV_AWS_50,CKV_AWS_272
+            --skip-check CKV_AWS_117,CKV_AWS_50,CKV_AWS_272,CKV_AWS_115,CKV_AWS_338,CKV_AWS_111,CKV_AWS_356,CKV_AWS_109
