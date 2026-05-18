@@ -9,12 +9,6 @@ on:
 permissions:
   contents: read
 
-# Opt into Node.js 24 now to silence the Node.js 20 deprecation warning on
-# hashicorp/setup-terraform@v3.x, which has no v4 release yet. GitHub forces
-# Node.js 24 on all runners from 2026-06-02 regardless.
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
-
 # Cancel in-flight runs for the same branch/PR so stale jobs don't waste
 # runner minutes or produce misleading status checks.
 concurrency:
@@ -51,7 +45,8 @@ jobs:
     steps:
       - uses: actions/checkout@v6.0.0
 
-      - uses: hashicorp/setup-terraform@v3.1.2
+      # v4.0.1 runs on Node.js 24, resolving the Node.js 20 deprecation warning.
+      - uses: hashicorp/setup-terraform@v4.0.1
         with:
           terraform_version: 1.5.7
 
