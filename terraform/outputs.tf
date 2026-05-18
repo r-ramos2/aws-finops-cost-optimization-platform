@@ -24,6 +24,7 @@ output "eventbridge_dlq_url" {
 }
 
 output "deployment_instructions" {
+  description = "Post-deployment steps to activate the platform"
   value = <<-EOT
     Deployment successful! Next steps:
     1. Check ${var.alert_email} for SNS subscription confirmation
