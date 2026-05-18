@@ -384,7 +384,10 @@ resource "aws_lambda_function" "cost_reporter" {
   source_code_hash = data.archive_file.cost_reporter.output_base64sha256
   runtime          = "python3.12"
   timeout          = 60
-  tags             = local.common_tags
+  # kms_key_arn encrypts environment variables at rest (CKV_AWS_173).
+  # The same CMK used for CloudWatch Logs and SNS is reused here.
+  kms_key_arn = aws_kms_key.finops.arn
+  tags        = local.common_tags
 
   environment {
     variables = {
@@ -416,7 +419,9 @@ resource "aws_lambda_function" "anomaly_detector" {
   source_code_hash = data.archive_file.anomaly_detector.output_base64sha256
   runtime          = "python3.12"
   timeout          = 60
-  tags             = local.common_tags
+  # kms_key_arn encrypts environment variables at rest (CKV_AWS_173).
+  kms_key_arn = aws_kms_key.finops.arn
+  tags        = local.common_tags
 
   environment {
     variables = {
@@ -448,7 +453,9 @@ resource "aws_lambda_function" "resource_optimizer" {
   source_code_hash = data.archive_file.resource_optimizer.output_base64sha256
   runtime          = "python3.12"
   timeout          = 120
-  tags             = local.common_tags
+  # kms_key_arn encrypts environment variables at rest (CKV_AWS_173).
+  kms_key_arn = aws_kms_key.finops.arn
+  tags        = local.common_tags
 
   environment {
     variables = {
