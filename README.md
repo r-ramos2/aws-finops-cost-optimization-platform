@@ -1,6 +1,11 @@
 # AWS FinOps Cost Optimization Platform
 
-[![Terraform](https://img.shields.io/badge/Terraform-%3E%3D4.0-blue)](https://www.terraform.io/) [![AWS](https://img.shields.io/badge/AWS-Cloud-orange)](https://aws.amazon.com/) [![Python](https://img.shields.io/badge/Python-3.12-blue)](https://www.python.org/) [![Lambda](https://img.shields.io/badge/AWS-Lambda-orange)](https://aws.amazon.com/lambda/) [![EventBridge](https://img.shields.io/badge/AWS-EventBridge-orange)](https://aws.amazon.com/eventbridge/)
+[![Terraform](https://img.shields.io/badge/Terraform-1.5.7-blue)](https://www.terraform.io/) 
+[![AWS](https://img.shields.io/badge/AWS-Cloud-orange)](https://aws.amazon.com/) 
+[![Python](https://img.shields.io/badge/Python-3.12-blue)](https://www.python.org/) 
+[![Checkov](https://img.shields.io/badge/Checkov-latest-blue)](https://www.checkov.io/) 
+[![Lambda](https://img.shields.io/badge/AWS-Lambda-orange)](https://aws.amazon.com/lambda/) 
+[![EventBridge](https://img.shields.io/badge/AWS-EventBridge-orange)](https://aws.amazon.com/eventbridge/)
 
 Automated cost monitoring, anomaly detection, and resource optimization for AWS infrastructure. Teams often target **roughly 20–35%** savings when they combine visibility like this with broader FinOps practices (right-sizing, purchasing programs, storage lifecycle work, and governance).
 
